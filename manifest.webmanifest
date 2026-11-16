@@ -1,15 +1,15 @@
 {
   "id": "./",
-  "name": "ObraControl — Avanço Físico",
-  "short_name": "ObraControl",
-  "description": "Apontamentos de produção diária, medições e fotos por serviço.",
+  "name": "RL Engenharia | Controle Físico de Obras",
+  "short_name": "RL Obras",
+  "description": "RL Engenharia — acompanhamento de avanço físico, volumes, medições e fotografias de obras.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0a1020",
-  "theme_color": "#0a1020",
+  "background_color": "#071524",
+  "theme_color": "#071524",
   "icons": [
     {
       "src": "./icon.svg",
