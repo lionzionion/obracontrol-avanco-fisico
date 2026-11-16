@@ -53,7 +53,6 @@ const mod={
  reset(){this.rows=[];this.draft=null;this.current=null;this.dirty=false;this.userId=null;this.error='';},
  init(bridge){
    this.bridge=bridge;
-   const actions=['click','change','input','submit'];
    document.addEventListener('click',ev=>{
      const btn=ev.target.closest('[data-rdo-action]');
      if(!btn)return;
@@ -359,7 +358,7 @@ const mod={
      pdf.setTextColor(242,250,253);pdf.setFontSize(13);pdf.text('RL ENGENHARIA',40,14.5);
      pdf.setFontSize(8);pdf.setFont('helvetica','normal');pdf.text('RELATORIO DIARIO DE OBRA | AMBEV - ITAPISSUMA/PE',40,21.5);
      pdf.text(seq(this.current||d)+'   |   '+dateBR(d.work_date),195,29.2,{align:'right'});
-     if(this.current?.status!=='final'){
+     if(this.current?.status!=='final'&&!strictImages){
        pdf.setFillColor(246,233,207);pdf.roundedRect(144,6,51,7,1.4,1.4,'F');
        pdf.setTextColor(95,66,18);pdf.setFontSize(8);pdf.setFont('helvetica','bold');pdf.text('RASCUNHO - CONFERIR',169.5,10.8,{align:'center'});
      }
