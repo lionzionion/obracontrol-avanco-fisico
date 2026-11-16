@@ -179,9 +179,18 @@ const mod={
    if(!this.draft)this.loadDate(this.date);
    const d=this.draft||draftDefaults(this.date);
    const locked=readonly?'disabled':'';
-   const draftStatus=this.current?.status==='final'
-    ?'<span class="rdo-pill final">RDO finalizado · PDF arquivado</span>'
-    :this.current?.id?'<span class="rdo-pill draft">Rascunho salvo</span>':'<span class="rdo-pill draft">Novo rascunho</span>';
+   const draftStatus='<span class="rdo-pill '+(approved||state==='final'?'final':submitted?'pending':returned?'returned':'draft')+'">'+esc(this.current?statusLabels[state]||state:'Novo rascunho')+'</span>';
+   const historyEvents=(Array.isArray(d.approval_history)?d.approval_history:[]).slice(-10);
+   const approvalDetails='<section class="rdo-approval-panel"><h3>Fluxo de aprovação</h3>'+
+     '<div class="rdo-approval-step"><span>1. Elaboração</span><strong>Engenheiro: '+esc(d.engineer_name||'Não informado')+'</strong></div>'+
+     '<div class="rdo-approval-step"><span>2. Envio para análise</span><strong>'+(d.submitted_at?'Enviado em '+whenBR(d.submitted_at):'Ainda não enviado')+'</strong></div>'+
+     '<div class="rdo-approval-step '+(approved?'is-approved':'')+'"><span>3. Decisão</span><strong>'+
+       (approved?'APROVADO POR '+esc(d.approved_name||'—'):state==='final'?'Finalizado na versão anterior':submitted?'Aguardando aprovação do administrador':returned?'Devolvido para correções':'Aguardando envio')+
+       '</strong>'+(approved?'<small>'+esc(d.approver_job_title||'Administrador')+' · '+whenBR(d.approved_at)+'</small>':'')+'</div>'+
+     (approved&&d.approval_note?'<div class="rdo-approval-note">Observação de aprovação: '+esc(d.approval_note)+'</div>':'')+
+     (returned&&d.return_reason?'<div class="rdo-approval-return"><strong>Motivo da devolução:</strong> '+esc(d.return_reason)+'</div>':'')+
+     (historyEvents.length?'<details class="rdo-approval-history"><summary>Histórico de decisões ('+historyEvents.length+')</summary>'+historyEvents.map(h=>'<p><strong>'+esc(({submitted:'Enviado',returned:'Devolvido',approved:'Aprovado'})[h.action]||h.action)+'</strong> · '+esc(h.actor_name||'Administrador')+' · '+whenBR(h.at)+(h.note?' — '+esc(h.note):'')+'</p>').join('')+'</details>':'')+
+     '<small class="rdo-approval-disclaimer">Aprovação administrativa registrada no ObraControl; não é assinatura digital nem aceite formal da Solutio.</small></section>';
    const sections=[
      ['weather','Clima / condições do tempo','Ex.: ensolarado (preenchimento manual)'],
      ['shift_description','Turno e horário de trabalho','Ex.: 07h às 17h'],
@@ -215,19 +224,20 @@ const mod={
        (readonly?'':'<div class="rdo-order"><button type="button" class="btn" data-rdo-action="move-up" data-id="'+esc(p.photo_id)+'" '+(i===0?'disabled':'')+'>↑ Subir</button><button type="button" class="btn" data-rdo-action="move-down" data-id="'+esc(p.photo_id)+'" '+(i===d.photo_manifest.length-1?'disabled':'')+'>↓ Descer</button></div>')+
        '</div></div>';
    }).join(''):'<div class="empty"><b>Sem fotos vinculadas aos lançamentos desta data</b>Cadastre imagens na tela Lançar produção e depois use Atualizar registros do dia.</div>';
-   const history=this.rows.slice(0,45).map(r=>'<div class="rdo-history-row"><div><strong>'+esc(seq(r))+' · '+dateBR(r.work_date)+'</strong><small>'+ (r.status==='final'?'Finalizado e arquivado':'Rascunho')+'</small></div>'+
+   const history=this.rows.slice(0,45).map(r=>'<div class="rdo-history-row"><div><strong>'+esc(seq(r))+' · '+dateBR(r.work_date)+'</strong><small>'+esc(statusLabels[r.status]||r.status)+(r.approved_name?' · Aprovado por '+esc(r.approved_name)+' em '+whenBR(r.approved_at):'')+'</small></div>'+
     '<div class="rdo-history-actions"><button type="button" class="btn" data-rdo-action="open" data-id="'+esc(r.work_date)+'">Abrir</button><button type="button" class="btn" data-rdo-action="history-pdf" data-id="'+esc(r.id)+'">PDF</button></div></div>').join('')||'<div class="helpText">Nenhum RDO salvo nesta obra ainda.</div>';
    const buttons='<div class="rdo-actions">'+
-    (this.admin&&this.current?.status!=='final'?'<button type="button" class="btn" data-rdo-action="sync">↻ Atualizar registros do dia</button><button type="submit" class="btn primary" id="rdoSaveButton">Salvar rascunho</button>':'')+
-    '<button type="button" class="btn" data-rdo-action="pdf">⇩ '+(this.current?.status==='final'?'Baixar PDF arquivado':'Gerar PDF de prévia')+'</button>'+
-    (this.admin&&this.current?.status!=='final'?'<button type="button" class="btn rdo-final-btn" data-rdo-action="finalize">✓ Finalizar e arquivar PDF</button>':'')+
-    '</div>';
-   const editor='<article class="panel rdo-editor"><div class="rdo-editor-title"><div><h2>'+esc(this.current?seq(this.current):'Novo RDO')+' · '+dateBR(d.work_date)+'</h2><small>AMBEV Itapissuma — Relatório Diário de Obra</small></div>'+draftStatus+'</div>'+
+     (isAdmin&&!readonly?'<button type="button" class="btn" data-rdo-action="sync">↻ Atualizar registros do dia</button><button type="submit" class="btn primary" id="rdoSaveButton">Salvar rascunho</button><button type="button" class="btn rdo-submit-btn" data-rdo-action="submit">Enviar para aprovação</button>':'')+
+     '<button type="button" class="btn" data-rdo-action="pdf">⇩ '+((approved||state==='final')&&this.current?.pdf_path?'Baixar PDF aprovado':'Gerar PDF de prévia')+'</button>'+
+     (isAdmin&&submitted?'<button type="button" class="btn rdo-final-btn" data-rdo-action="approve">✓ Aprovar RDO</button><button type="button" class="btn rdo-return-btn" data-rdo-action="return">↶ Devolver para ajuste</button>':'')+
+     (isAdmin&&approved&&!this.current?.pdf_path?'<button type="button" class="btn rdo-final-btn" data-rdo-action="archive">Arquivar PDF aprovado</button>':'')+
+     '</div>';
+   const editor='<article class="panel rdo-editor"><div class="rdo-editor-title"><div class="rdo-heading-with-logo"><img class="rdo-head-logo" src="./assets/rl-logo.svg" alt="Logomarca RL Engenharia — Fazendo Acontecer"><div><h2>'+esc(this.current?seq(this.current):'Novo RDO')+' · '+dateBR(d.work_date)+'</h2><small>AMBEV Itapissuma — Relatório Diário de Obra</small></div></div>'+draftStatus+'</div>'+
       '<form id="rdoForm"><h3>01. Serviços e produção registrados</h3><div class="rdo-activities">'+activityHTML+'</div>'+
       '<h3>02. Informações do dia (revisão do engenheiro)</h3><div class="rdo-fields">'+fieldHTML+'</div>'+
       '<h3>03. Relatório fotográfico <span class="rdo-counter">'+d.photo_manifest.filter(p=>p.include).length+' selecionadas</span></h3>'+
-      '<div class="rdo-photos">'+photoHTML+'</div>'+buttons+
-      '<p class="helpText">PDF em A4 com numeração, quantidades e fotos reais. Rascunhos são editáveis; finalização bloqueia alterações e arquiva uma cópia privada do PDF. O PDF não constitui assinatura digital.</p></form></article>';
+      '<div class="rdo-photos">'+photoHTML+'</div>'+approvalDetails+buttons+
+      '<p class="helpText">PDF A4 com logomarca RL, serviços e fotos reais. Após o envio, o administrador aprova ou devolve para ajustes. Nome, cargo e horário são registrados no servidor. O registro não constitui assinatura digital.</p></form></article>';
    root.innerHTML=(this.error?'<div class="rdo-alert">'+esc(this.error)+'</div>':'')+top+editor+
     '<div class="panel rdo-history"><h2>Histórico de RDOs</h2>'+history+'</div>';
  },
