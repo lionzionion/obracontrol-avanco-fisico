@@ -7,9 +7,11 @@
   <meta name="description" content="RL Engenharia | Central gerencial de obras, produção, fotos e alimentação.">
   <title>RL Central de Obras | Painel executivo</title>
   <link rel="icon" href="../icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./dashboard.css">
+  <link rel="stylesheet" href="./dashboard.css?v=2">
+  <link rel="stylesheet" href="./premium.css?v=2">
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
-  <script defer src="./dashboard.js"></script>
+  <script defer src="./dashboard.js?v=2"></script>
+  <script defer src="./ui-icons.js?v=2"></script>
 </head>
 <body>
   <section id="authGate" class="auth-gate">
@@ -44,9 +46,13 @@
         <button class="nav-btn" data-screen="food" type="button"><span>◈</span> Alimentação e equipe</button>
         <button class="nav-btn" data-screen="report" type="button"><span>▣</span> Relatório gerencial</button>
       </nav>
-      <div class="sidebar-heading links-heading">APLICATIVOS OPERACIONAIS</div>
-      <a class="side-link" href="../" target="_blank" rel="noopener">↗ Abrir ObraControl</a>
-      <a class="side-link" href="../../pedidos-almoco-Rlconstrucoes/acesso/" target="_blank" rel="noopener">↗ Abrir RL Pedidos</a>
+      <div class="sidebar-heading links-heading">APLICATIVOS INTEGRADOS</div>
+      <button type="button" class="app-button" data-app="obras" aria-label="Abrir ObraControl dentro da Central">
+        <span class="app-left"><span data-app-icon="obras" aria-hidden="true"></span><span>ObraControl<small>Produção e medições</small></span></span><span data-icon="right" class="app-chevron"></span>
+      </button>
+      <button type="button" class="app-button" data-app="pedidos" aria-label="Abrir RL Pedidos dentro da Central">
+        <span class="app-left"><span data-app-icon="pedidos" aria-hidden="true"></span><span>RL Pedidos<small>Refeições e colaboradores</small></span></span><span data-icon="right" class="app-chevron"></span>
+      </button>
       <div class="sidebar-bottom"><div class="status-dot"></div><div><b>AMBEV • ITAPISSUMA</b><small>Fonte: Supabase compartilhado</small></div></div>
     </aside>
     <div class="shell">
@@ -54,6 +60,17 @@
         <div class="topbar-title"><span class="crumb">RL ENGENHARIA / AMBEV ITAPISSUMA</span><strong>Central de Controle de Obras</strong></div>
         <div class="top-actions"><span class="live-chip">● DADOS NA NUVEM</span><span class="user-chip" id="userLabel">—</span><button type="button" id="logoutBtn" class="btn ghost">Sair</button></div>
       </header>
+      <section id="workspace" class="workspace" hidden aria-label="Aplicativo integrado">
+        <div class="workspace-header">
+          <div class="work-title"><span class="nav-icon" id="workIcon" aria-hidden="true"></span><div><strong id="workTitle">Aplicativo operacional</strong><span id="workSubtitle">Acesso integrado, com a mesma sessão RL</span></div></div>
+          <div class="workspace-actions">
+            <button class="btn" id="workBack" type="button">← Voltar ao painel</button>
+            <a class="btn ghost" id="workExternal" target="_blank" rel="noopener" href="../">Abrir em nova aba ↗</a>
+          </div>
+        </div>
+        <iframe id="workFrame" class="workspace-frame" title="Aplicativo RL integrado" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        <p class="workspace-hint">O aplicativo utiliza a autenticação já compartilhada pelo GitHub Pages e Supabase. As permissões continuam sendo verificadas pelo aplicativo de origem.</p>
+      </section>
       <main id="main">
         <div class="page-heading">
           <div><span class="eyebrow">PAINEL EXECUTIVO · RL ENGENHARIA</span><h1 id="pageTitle">Visão executiva</h1><p id="pageSubtitle">O que foi executado, registrado e acompanhado na obra.</p></div>
@@ -74,6 +91,22 @@
             <article class="kpi"><div class="kpi-label">Fotos no período <span>▧</span></div><div class="kpi-value" id="kpiPhotos">—</div><div class="kpi-sub">Evidências da execução</div></article>
             <article class="kpi"><div class="kpi-label">Refeições válidas <span>◈</span></div><div class="kpi-value" id="kpiMeals">—</div><div class="kpi-sub" id="kpiMealsSub">RL + Solutio no período</div></article>
           </div>
+          <article class="panel focus-panel">
+            <div class="panel-head focus-title"><div><h2>Leitura do avanço físico</h2><p>Entenda cada etapa: aprovado na medição, executado a medir e saldo contratual</p></div><select id="focusServiceSelect" aria-label="Selecionar serviço para detalhar o avanço"><option value="">Selecione um serviço</option></select></div>
+            <div id="focusProgress"><p class="empty">Carregando indicadores do serviço…</p></div>
+            <div class="progress-legend" aria-label="Legenda do progresso físico">
+              <span><i class="legend-swatch measured"></i> Medido e aprovado no sistema</span>
+              <span><i class="legend-swatch pending"></i> Executado ainda não medido</span>
+              <span><i class="legend-swatch remaining"></i> Saldo da meta</span>
+            </div>
+            <p class="section-explainer">A barra mostra a proporção em relação à <strong>meta física do serviço</strong>. “Executado” não significa “medido”. Sem lançamento de medição aprovada, a parcela medida permanecerá zerada.</p>
+          </article>
+          <article class="panel daily-production">
+            <div class="panel-head daily-title"><div><h2>Quanto foi produzido por dia</h2><p>Escolha um serviço para visualizar as quantidades diárias na unidade correta</p></div><select id="dailyServiceSelect" aria-label="Selecionar serviço para evolução diária"><option value="">Selecione um serviço</option></select></div>
+            <div class="daily-summary" id="dailySummary"></div>
+            <div class="graph" id="dailyChart"></div>
+            <p class="chart-note">Dados do diário de produção. Gráfico por serviço, sem somar unidades incompatíveis.</p>
+          </article>
           <div class="overview-grid">
             <article class="panel graph-panel"><div class="panel-head"><div><h2>Atividade diária</h2><p>Número de lançamentos por dia (sem somar unidades incompatíveis)</p></div><span class="tag">PRODUÇÃO</span></div><div id="activityChart" class="graph"></div><div class="legend"><span><i class="legend-dot"></i>Apontamentos de produção</span></div></article>
             <article class="panel"><div class="panel-head"><div><h2>Saúde do acompanhamento</h2><p>Indicadores de registro da obra</p></div></div><div id="healthStats" class="stat-stack"></div></article>
@@ -85,9 +118,10 @@
           <div class="info-note"><strong>Critério de engenharia:</strong> o sistema não calcula um percentual físico global sem pesos aprovados e cronograma-base. Os percentuais representam a execução de cada serviço; m², m³, m e unidades não são somados entre si.</div>
         </section>
         <section id="screen-production" class="screen" hidden>
+          <div class="progress-legend" aria-label="Legenda das barras na tabela"><span><i class="legend-swatch measured"></i> Medido e aprovado</span><span><i class="legend-swatch pending"></i> Executado não medido</span><span><i class="legend-swatch remaining"></i> Saldo da meta</span></div>
           <article class="panel"><div class="panel-head"><div><h2>Produção acumulada e medição aprovada</h2><p>Metas, quantidades executadas e medições separadas por serviço</p></div><span class="tag" id="serviceCount">—</span></div>
             <div class="table-tools"><input type="search" id="serviceSearch" placeholder="Buscar serviço, código ou unidade…" aria-label="Buscar serviço"><button type="button" id="csvBtn" class="btn">↓ CSV</button></div>
-            <div class="table-scroll"><table><thead><tr><th>Código / serviço</th><th>Un.</th><th class="numeric">Meta</th><th class="numeric">Executado</th><th class="numeric">Medido</th><th>Progresso</th><th class="numeric">No período</th></tr></thead><tbody id="serviceRows"></tbody></table></div>
+            <div class="table-scroll"><table><thead><tr><th>Código / serviço</th><th>Un.</th><th class="numeric">Meta</th><th class="numeric">Executado</th><th class="numeric">Medido</th><th>Execução / Medição</th><th class="numeric">No período</th></tr></thead><tbody id="serviceRows"></tbody></table></div>
           </article>
           <article class="panel"><div class="panel-head"><div><h2>Diário de produção</h2><p>Lançamentos detalhados por data, item, responsável e frente</p></div></div><div class="table-scroll"><table><thead><tr><th>Data</th><th>Item</th><th class="numeric">Quantidade</th><th>Frente</th><th>Responsável</th><th>Tipo</th></tr></thead><tbody id="dailyRows"></tbody></table></div></article>
         </section>
