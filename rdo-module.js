@@ -76,7 +76,7 @@ const mod={
    const {data,error}=await this.cloud.from('obc_rdos').select('*').order('work_date',{ascending:false}).limit(366);
    if(error){this.error=error.message;this.notice('Erro ao carregar RDOs: '+error.message,true);return}
    this.rows=data||[];this.error='';
-   if(this.current){const updated=this.rows.find(x=>x.id===this.current.id);if(updated&&!this.dirty)this.current=updated}
+   if(this.current){const updated=this.rows.find(x=>x.id===this.current.id);if(updated&&!this.dirty){this.current=updated;this.draft={...draftDefaults(updated.work_date),...structuredClone(updated)};}}
  },
  captureInput(target){
    if(!this.draft||lockedStatus(this.current?.status))return;
