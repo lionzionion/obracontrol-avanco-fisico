@@ -1,0 +1,61 @@
+name: Validar e publicar ObraControl
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Validar e publicar site
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Validar itens e código
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const items = JSON.parse(fs.readFileSync('itens.json', 'utf8'));
+          const html = fs.readFileSync('index.html', 'utf8');
+          if (items.length !== 70) throw Error('Esperados 70 itens');
+          if (new Set(items.map(i => i.id)).size !== items.length) throw Error('IDs duplicados');
+          if (items.some(i => !i.id || !i.description || i.planned <= 0)) throw Error('Item físico inválido');
+          if (items.some(i => Object.keys(i).some(k => /preco|price|valor|custo/i.test(k)))) throw Error('Catálogo com valor financeiro');
+          const script = html.match(/<script>([\s\S]*?)<\/script>/);
+          if (!script) throw Error('Script do aplicativo não encontrado');
+          fs.writeFileSync('/tmp/obracontrol.js', script[1]);
+          const inline = script[1].match(/const ITEMS=(\[[^\n]*\]);/);
+          if (!inline || JSON.stringify(JSON.parse(inline[1])) !== JSON.stringify(items)) throw Error('Catálogos divergentes');
+          console.log('Validados: ' + items.length + ' itens; sem campos monetários');
+          NODE
+          node --check /tmp/obracontrol.js
+          mkdir -p dist
+          cp index.html itens.json manifest.webmanifest icon.svg sw.js dist/
+          touch dist/.nojekyll
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Enviar site para publicação
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./dist
+
+      - name: Publicar no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
