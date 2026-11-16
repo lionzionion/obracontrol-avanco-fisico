@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07172b">
+  <meta name="description" content="RL Engenharia | Central gerencial de obras, produção, fotos e alimentação.">
+  <title>RL Central de Obras | Painel executivo</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./dashboard.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+  <script defer src="./dashboard.js"></script>
+</head>
+<body>
+  <section id="authGate" class="auth-gate">
+    <div class="auth-card">
+      <img class="auth-logo" src="../assets/rl-logo.svg" alt="RL Engenharia">
+      <span class="eyebrow">CONTROLE GERENCIAL • AMBEV ITAPISSUMA</span>
+      <h1>Inteligência de obra em um só lugar.</h1>
+      <p>Entre com a sua conta de administrador RL para consultar produção, medições, fotografias e alimentação em uma visão executiva.</p>
+      <form id="loginForm" class="auth-form">
+        <label for="login">Usuário ou e-mail</label>
+        <input type="text" id="login" autocomplete="username" placeholder="Seu usuário RL" required>
+        <label for="password">Senha</label>
+        <input type="password" id="password" autocomplete="current-password" placeholder="••••••••" required>
+        <button type="submit" id="loginBtn" class="btn primary">Entrar na Central</button>
+      </form>
+      <p id="loginError" class="auth-error" role="alert" aria-live="polite"></p>
+      <p class="subtle">Somente leitura • Sem exposição de fotos e dados sem autenticação</p>
+      <a class="backlink" href="../">Voltar ao ObraControl</a>
+    </div>
+  </section>
+  <div id="application" class="app" hidden>
+    <aside class="sidebar">
+      <a href="./" class="brand">
+        <img src="../assets/rl-logo.svg" alt="RL Engenharia">
+        <span>CENTRAL DE OBRAS <small>GESTÃO & INTELIGÊNCIA</small></span>
+      </a>
+      <div class="sidebar-heading">GESTÃO DA OBRA</div>
+      <nav id="sideNav" class="side-nav" aria-label="Módulos da Central">
+        <button class="nav-btn active" data-screen="overview" type="button"><span>▦</span> Visão executiva</button>
+        <button class="nav-btn" data-screen="production" type="button"><span>▤</span> Produção e medições</button>
+        <button class="nav-btn" data-screen="photos" type="button"><span>▧</span> Galeria da obra</button>
+        <button class="nav-btn" data-screen="food" type="button"><span>◈</span> Alimentação e equipe</button>
+        <button class="nav-btn" data-screen="report" type="button"><span>▣</span> Relatório gerencial</button>
+      </nav>
+      <div class="sidebar-heading links-heading">APLICATIVOS OPERACIONAIS</div>
+      <a class="side-link" href="../" target="_blank" rel="noopener">↗ Abrir ObraControl</a>
+      <a class="side-link" href="../../pedidos-almoco-Rlconstrucoes/acesso/" target="_blank" rel="noopener">↗ Abrir RL Pedidos</a>
+      <div class="sidebar-bottom"><div class="status-dot"></div><div><b>AMBEV • ITAPISSUMA</b><small>Fonte: Supabase compartilhado</small></div></div>
+    </aside>
+    <div class="shell">
+      <header class="topbar">
+        <div class="topbar-title"><span class="crumb">RL ENGENHARIA / AMBEV ITAPISSUMA</span><strong>Central de Controle de Obras</strong></div>
+        <div class="top-actions"><span class="live-chip">● DADOS NA NUVEM</span><span class="user-chip" id="userLabel">—</span><button type="button" id="logoutBtn" class="btn ghost">Sair</button></div>
+      </header>
+      <main id="main">
+        <div class="page-heading">
+          <div><span class="eyebrow">PAINEL EXECUTIVO · RL ENGENHARIA</span><h1 id="pageTitle">Visão executiva</h1><p id="pageSubtitle">O que foi executado, registrado e acompanhado na obra.</p></div>
+          <div class="heading-actions"><button type="button" class="btn" id="refreshBtn">⟳ Atualizar</button><button type="button" class="btn primary" id="printBtn">↓ Relatório PDF</button></div>
+        </div>
+        <section class="filters no-print" aria-label="Filtros dos indicadores">
+          <div class="filter"><label for="startDate">Data inicial</label><input id="startDate" type="date"></div>
+          <div class="filter"><label for="endDate">Data final</label><input id="endDate" type="date"></div>
+          <div class="filter stretch"><label for="contractFilter">Frente / proposta</label><select id="contractFilter"><option value="all">Todas as frentes</option><option value="gabioes">Gabiões e drenagem</option><option value="demolicao">Demolição e terraplenagem</option></select></div>
+          <button type="button" id="applyFilters" class="btn primary filter-action">Aplicar filtros</button>
+          <button type="button" id="resetFilters" class="btn ghost filter-action">Últimos 30 dias</button>
+        </section>
+        <div id="notice" class="notice" role="status" aria-live="polite"></div>
+        <section id="screen-overview" class="screen active">
+          <div class="kpi-grid">
+            <article class="kpi"><div class="kpi-label">Serviços com execução <span>◈</span></div><div class="kpi-value" id="kpiServices">—</div><div class="kpi-sub" id="kpiServicesSub">Do catálogo da obra</div></article>
+            <article class="kpi"><div class="kpi-label">Apontamentos no período <span>▤</span></div><div class="kpi-value" id="kpiEntries">—</div><div class="kpi-sub" id="kpiEntriesSub">Produção registrada</div></article>
+            <article class="kpi"><div class="kpi-label">Fotos no período <span>▧</span></div><div class="kpi-value" id="kpiPhotos">—</div><div class="kpi-sub">Evidências da execução</div></article>
+            <article class="kpi"><div class="kpi-label">Refeições válidas <span>◈</span></div><div class="kpi-value" id="kpiMeals">—</div><div class="kpi-sub" id="kpiMealsSub">RL + Solutio no período</div></article>
+          </div>
+          <div class="overview-grid">
+            <article class="panel graph-panel"><div class="panel-head"><div><h2>Atividade diária</h2><p>Número de lançamentos por dia (sem somar unidades incompatíveis)</p></div><span class="tag">PRODUÇÃO</span></div><div id="activityChart" class="graph"></div><div class="legend"><span><i class="legend-dot"></i>Apontamentos de produção</span></div></article>
+            <article class="panel"><div class="panel-head"><div><h2>Saúde do acompanhamento</h2><p>Indicadores de registro da obra</p></div></div><div id="healthStats" class="stat-stack"></div></article>
+          </div>
+          <div class="overview-grid">
+            <article class="panel"><div class="panel-head"><div><h2>Principais serviços executados</h2><p>Avanço individual por quantidade física</p></div><button type="button" class="text-button" data-jump="production">Ver todos</button></div><div id="topServices" class="progress-list"></div></article>
+            <article class="panel"><div class="panel-head"><div><h2>Registros recentes</h2><p>Últimos apontamentos do período</p></div></div><div id="recentEntries" class="recent-list"></div></article>
+          </div>
+          <div class="info-note"><strong>Critério de engenharia:</strong> o sistema não calcula um percentual físico global sem pesos aprovados e cronograma-base. Os percentuais representam a execução de cada serviço; m², m³, m e unidades não são somados entre si.</div>
+        </section>
+        <section id="screen-production" class="screen" hidden>
+          <article class="panel"><div class="panel-head"><div><h2>Produção acumulada e medição aprovada</h2><p>Metas, quantidades executadas e medições separadas por serviço</p></div><span class="tag" id="serviceCount">—</span></div>
+            <div class="table-tools"><input type="search" id="serviceSearch" placeholder="Buscar serviço, código ou unidade…" aria-label="Buscar serviço"><button type="button" id="csvBtn" class="btn">↓ CSV</button></div>
+            <div class="table-scroll"><table><thead><tr><th>Código / serviço</th><th>Un.</th><th class="numeric">Meta</th><th class="numeric">Executado</th><th class="numeric">Medido</th><th>Progresso</th><th class="numeric">No período</th></tr></thead><tbody id="serviceRows"></tbody></table></div>
+          </article>
+          <article class="panel"><div class="panel-head"><div><h2>Diário de produção</h2><p>Lançamentos detalhados por data, item, responsável e frente</p></div></div><div class="table-scroll"><table><thead><tr><th>Data</th><th>Item</th><th class="numeric">Quantidade</th><th>Frente</th><th>Responsável</th><th>Tipo</th></tr></thead><tbody id="dailyRows"></tbody></table></div></article>
+        </section>
+        <section id="screen-photos" class="screen" hidden>
+          <article class="panel"><div class="panel-head"><div><h2>Registro fotográfico da obra</h2><p>Fotos armazenadas no bucket privado, acessadas por links temporários</p></div><span class="tag" id="photoCount">—</span></div><div id="photoGrid" class="photo-grid"></div></article>
+        </section>
+        <section id="screen-food" class="screen" hidden>
+          <div class="kpi-grid small"><article class="kpi"><div class="kpi-label">Refeições ativas</div><div class="kpi-value" id="foodCount">—</div><div class="kpi-sub">Não canceladas / não arquivadas</div></article><article class="kpi"><div class="kpi-label">Subtotal das refeições</div><div class="kpi-value" id="foodCost">—</div><div class="kpi-sub">Sem taxas de entrega</div></article><article class="kpi"><div class="kpi-label">Colaboradores cadastrados</div><div class="kpi-value" id="staffCount">—</div><div class="kpi-sub">Não representa presença na obra</div></article></div>
+          <div class="overview-grid"><article class="panel"><div class="panel-head"><div><h2>Alimentação por empresa</h2><p>Pedidos de RL e Solutio no período</p></div></div><div id="foodByCompany" class="stat-stack"></div></article><article class="panel"><div class="panel-head"><div><h2>Refeições por tipo</h2><p>Excluídos pedidos cancelados e arquivados</p></div></div><div id="foodByMeal" class="stat-stack"></div></article></div><div class="info-note">Os valores exibidos são somente os preços das refeições registradas. Fretes, rateios e conferência financeira oficial devem ser verificados no RL Pedidos. O número de colaboradores cadastrados não indica presença real em campo.</div>
+        </section>
+        <section id="screen-report" class="screen" hidden>
+          <article class="panel report-sheet"><div class="report-head"><img src="../assets/rl-logo.svg" alt="RL Engenharia"><div><h2>Relatório gerencial de acompanhamento</h2><p>AMBEV • Itapissuma / PE</p><small id="reportPeriod">—</small></div></div>
+          <div id="reportContent" class="report-content"></div>
+          <div class="info-note">Documento gerado com base nos registros existentes no Supabase. Para emissão formal de RDO ou medição contratual, confira evidências, metas e aprovação da fiscalização.</div>
+          <button class="btn primary report-print no-print" id="reportPrintBtn">Imprimir ou salvar relatório em PDF</button></article>
+        </section>
+        <footer><span>RL ENGENHARIA · FAZENDO ACONTECER</span><span id="syncedAt">Aguardando sincronização</span></footer>
+      </main>
+    </div>
+  </div>
+  <dialog id="photoModal" class="photo-modal"><button type="button" id="closePhoto" class="photo-close" aria-label="Fechar foto">×</button><img id="largePhoto" alt="Foto ampliada da obra"><p id="photoCaption"></p></dialog>
+</body>
+</html>
