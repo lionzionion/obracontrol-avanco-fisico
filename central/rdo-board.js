@@ -51,7 +51,8 @@
     const filter=$("rdoStatusFilter").value;
     const from=$("rdoDateStart").value,to=$("rdoDateEnd").value;
     return rowsSorted().filter(r=>{
-      if(filter!=="all"&&r.status!==filter)return false;
+      if(filter==="approved"&&!["approved","final"].includes(r.status))return false;
+      if(filter!=="all"&&filter!=="approved"&&r.status!==filter)return false;
       if(from && r.work_date<from)return false;
       if(to && r.work_date>to)return false;
       if(term){
