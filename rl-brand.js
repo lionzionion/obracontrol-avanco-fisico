@@ -85,6 +85,8 @@
     ["launch", "APONTAMENTOS EM CAMPO", "Lançamento diário de produção"],
     ["items", "CATÁLOGO DE SERVIÇOS", "Itens e evidências fotográficas"],
     ["measure", "CONTROLE DE MEDIÇÕES", "Medições físicas aprovadas"],
+    ["bm", "GESTÃO CONTRATUAL", "Boletins de medição e aprovações"],
+    ["rdo", "DOCUMENTAÇÃO DIÁRIA", "RDOs e relatórios fotográficos"],
     ["history", "REGISTROS DA OBRA", "Histórico, exportações e segurança"]
   ];
   for (const [key, kickerText, labelText] of sections) {
