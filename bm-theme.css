@@ -1,0 +1,51 @@
+/* RL Engenharia / ObraControl - modulo de boletins de medicao */
+.bm-only{display:none!important}
+body.is-admin .bm-only{display:flex!important}
+.bm-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:8px 0 17px}
+.bm-kpi{background:linear-gradient(145deg,#142b43,#102239);border:1px solid #385874;border-radius:14px;padding:16px}
+.bm-kpi small{display:block;font-weight:750;font-size:12px;color:#a9bdd2}
+.bm-kpi b{font-size:30px;display:block;font-weight:900;line-height:1.35;margin-top:4px}
+.bm-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:15px 0 22px}
+.bm-card{text-align:left;background:#14243c;border:1px solid #3a536d;padding:15px;border-radius:14px;display:grid;align-content:start;gap:9px;color:#e4f4ff;min-height:145px}
+.bm-card:hover,.bm-card.selected{border-color:#56cfb4;background:#193d4b}
+.bm-card b{font-size:15px}
+.bm-card>small{font-size:11px;color:#b6c9d9}
+.bm-card>span:last-child{font-size:12px;color:#a7bdd0}
+.bm-card>span:last-child strong{color:#e3fbf8}
+.bm-status{font-size:10px;font-weight:850;letter-spacing:.35px;padding:4px 8px;border-radius:6px;display:inline-block;width:fit-content}
+.bm-approved{color:#b2f3cf;background:#1c553b}
+.bm-pending{color:#ffe1a8;background:#65452e}
+.bm-draft{color:#bbd1e8;background:#33465d}
+.bm-detail{padding:20px}
+.bm-detail-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.bm-detail-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.bm-pairs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:17px 0}
+.bm-pairs>div{border-radius:11px;padding:13px;background:#122b3f;border:1px solid #304c60}
+.bm-pairs small{color:#afc2d7;font-size:10px;display:block}
+.bm-pairs b{font-size:17px;margin-top:5px;display:block;overflow-wrap:anywhere}
+.bm-table-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:23px 0 13px}
+.bm-table-head h3{margin:0;font-size:15px}
+.bm-table-head .input{width:min(310px,100%)}
+.bm-table-wrap{width:100%;overflow-x:auto;border-radius:11px;border:1px solid #354e65}
+.bm-table{width:100%;min-width:880px;border-collapse:collapse;font-size:12px}
+.bm-table th{font-size:11px;color:#d7eef7;background:#1a3c50}
+.bm-table th,.bm-table td{padding:10px 11px;text-align:left;vertical-align:top;border-bottom:1px solid #2b4560}
+.bm-table td:first-child{min-width:235px}
+.bm-table tr:nth-child(even){background:#11273b}
+.bm-table td small{display:block;font-size:10px;color:#9eb3ca;line-height:1.4;margin-top:4px}
+.bm-table tr[hidden]{display:none}
+.bm-warning,.bm-addtag{display:inline-block;color:#ffe0a3;font-size:9px;font-weight:800;margin-left:4px;background:#4d3925;border-radius:4px;padding:3px 5px}
+.bm-addtag{background:#225368;color:#b6edfb}
+.bm-alert{padding:10px 13px;border:1px solid #ab7b3f;background:#4c3724;border-radius:9px;color:#ffe4b1;font-size:12px;margin:10px 0}
+.bm-service{border-top:1px solid #31485d;margin-top:8px;padding-top:9px}
+.bm-service .miniProgress{margin-top:5px}
+.bm-approved-bar i{background:linear-gradient(90deg,#239e74,#61ddb0)}
+.bm-service-link{width:100%;margin-top:9px}
+.bm-focus{padding:11px;background:#1b3c4b;border-radius:9px;display:flex;align-items:center;gap:14px;margin:0 0 15px}
+.bm-add-line{margin:16px 0;padding:13px;border:1px solid #34536a;border-radius:11px;background:#142940}
+.bm-add-line summary{font-size:12px;color:#bff5e8;font-weight:800;cursor:pointer}
+.bm-quick-form{margin-top:14px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.bm-quick-form label{display:grid;gap:4px;font-size:11px;color:#b7d1df}
+.bm-quick-form .btn{align-self:end}
+@media(max-width:850px){.mobileNav{grid-template-columns:repeat(6,minmax(0,1fr))}.mobileNav button{font-size:9px}.bm-pairs{grid-template-columns:1fr 1fr}.bm-summary{gap:8px}}
+@media(max-width:480px){.bm-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.bm-kpi{padding:10px}.bm-kpi b{font-size:25px}.bm-detail{padding:13px}.bm-pairs,.bm-quick-form{grid-template-columns:1fr}.bm-detail-actions{justify-content:flex-start}.bm-card{min-height:120px}.bm-list{grid-template-columns:1fr}.mobileNav button span{font-size:16px}}
