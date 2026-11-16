@@ -454,10 +454,10 @@
   async function copyDirectorCredentials(){
     const c=state.directorCredentials;
     if(!c)return;
-    const payload="RL Engenharia | Central de Controle de Obras\\n"+
-      "Link: https://lionzionion.github.io/obracontrol-avanco-fisico/central/\\n"+
-      "Usuário: "+c.username+"\\nSenha temporária: "+c.password+
-      "\\nPerfil: Diretoria (somente leitura). Altere a senha após entrar.";
+    const payload="RL Engenharia | Central de Controle de Obras\n"+
+      "Link: https://lionzionion.github.io/obracontrol-avanco-fisico/central/\n"+
+      "Usuário: "+c.username+"\nSenha temporária: "+c.password+
+      "\nPerfil: Diretoria (somente leitura). Altere a senha após entrar.";
     try{
       await navigator.clipboard.writeText(payload);
       $("directorFeedback").textContent="Credenciais copiadas. Envie somente em conversa privada ao destinatário.";
