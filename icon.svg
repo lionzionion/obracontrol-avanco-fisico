@@ -1,1 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ObraControl"><defs><linearGradient id="g" x1="0" x2="1" y1="1" y2="0"><stop stop-color="#1889c3"/><stop offset="1" stop-color="#36d0ae"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="#0a1020"/><rect x="54" y="54" width="404" height="404" rx="95" fill="url(#g)"/><path d="M123 314l86-97 67 56 109-116" fill="none" stroke="#092437" stroke-width="37" stroke-linecap="round" stroke-linejoin="round"/><path d="M321 157h64v67" fill="none" stroke="#092437" stroke-width="37" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RL Engenharia">
+<defs><linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#10bde9"/><stop offset="1" stop-color="#006aa5"/></linearGradient><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d2f54e"/><stop offset="1" stop-color="#80b60f"/></linearGradient></defs>
+<rect width="512" height="512" rx="104" fill="#092235"/>
+<path d="M93 145 316 81 324 135 161 190 161 426 93 426Z" fill="url(#a)"/>
+<path d="M161 190 317 136 317 295 267 313 267 185 211 203 211 303 161 325Z" fill="#067cb5"/>
+<path d="M211 288 413 217 440 255 278 312 278 426 211 426Z" fill="url(#b)"/>
+<path d="M278 312 413 266 413 426 278 426Z" fill="#6da911"/>
+<path d="M413 217 440 255 440 426 413 426Z" fill="#a6d630"/>
+</svg>
