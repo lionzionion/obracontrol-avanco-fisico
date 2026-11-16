@@ -45,6 +45,7 @@ jobs:
           NODE
           node --check /tmp/obracontrol.js
           node --check rl-brand.js
+          node --check bm-module.js
           node --check central/dashboard.js
           test -s central/index.html
           test -s central/dashboard.css
@@ -52,10 +53,12 @@ jobs:
           grep -q 'dashboard.css' central/index.html
           test -s assets/rl-logo.svg
           test -s rl-theme.css
+          test -s bm-theme.css
           grep -q 'rl-theme.css' index.html
           grep -q 'rl-brand.js' index.html
+          grep -q 'bm-module.js' index.html
           mkdir -p dist/assets
-          cp index.html itens.json manifest.webmanifest icon.svg sw.js rl-theme.css rl-brand.js dist/
+          cp index.html itens.json manifest.webmanifest icon.svg sw.js rl-theme.css rl-brand.js bm-module.js bm-theme.css dist/
           cp assets/rl-logo.svg dist/assets/
           cp -r central dist/central
           touch dist/.nojekyll
