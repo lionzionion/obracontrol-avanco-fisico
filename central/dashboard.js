@@ -189,7 +189,7 @@
     ].join("");
     const top=rows.filter(r=>r.executed>0).sort((a,b)=>b.percent-a.percent).slice(0,6);
     $("topServices").innerHTML=top.length?top.map(r=>
-      '<div class="service-mini"><div class="top"><div><b>'+escapeHTML(r.code+" · "+r.description)+'</b><span class="sub">'+numeric(r.executed)+' / '+numeric(r.planned)+' '+escapeHTML(r.unit)+'</span></div><small>'+pct(r.percent)+'</small></div>'+progressBar(r.percent)+'</div>'
+      '<div class="service-mini"><div class="top"><div><b>'+escapeHTML(r.code+" · "+r.description)+'</b><span class="sub">'+numeric(r.executed)+' / '+numeric(r.planned)+' '+escapeHTML(r.unit)+'</span></div><small>'+pct(r.percent)+'</small></div>'+(window.RL_CENTRAL_ENHANCE?.stage?.(r)||progressBar(r.percent))+'</div>'
     ).join(""):empty("Ainda não existem serviços executados neste recorte.");
     const map=itemMap();
     const recents=entries.filter(e=>e.kind==="production").slice()
@@ -236,7 +236,7 @@
     const visible=rows.filter(r=>(r.code+" "+r.description+" "+r.unit).toLocaleLowerCase("pt-BR").includes(term));
     $("serviceCount").textContent=visible.length+" serviços";
     $("serviceRows").innerHTML=visible.length?visible.map(r=>
-      '<tr><td><span class="service-id">'+escapeHTML(r.code)+'</span><span class="service-name">'+escapeHTML(r.description)+'</span></td><td>'+escapeHTML(r.unit)+'</td><td class="numeric">'+numeric(r.planned)+'</td><td class="numeric">'+numeric(r.executed)+'</td><td class="numeric">'+numeric(r.measured)+'</td><td><div class="meter"><span>'+pct(r.percent)+'</span>'+progressBar(r.percent)+'</div></td><td class="numeric">'+numeric(r.during)+'</td></tr>'
+      '<tr><td><span class="service-id">'+escapeHTML(r.code)+'</span><span class="service-name">'+escapeHTML(r.description)+'</span></td><td>'+escapeHTML(r.unit)+'</td><td class="numeric">'+numeric(r.planned)+'</td><td class="numeric">'+numeric(r.executed)+'</td><td class="numeric">'+numeric(r.measured)+'</td><td>'+(window.RL_CENTRAL_ENHANCE?.smallStage?.(r)||'<div class="meter"><span>'+pct(r.percent)+'</span>'+progressBar(r.percent)+'</div>')+'</td><td class="numeric">'+numeric(r.during)+'</td></tr>'
     ).join(""):'<tr><td colspan="7">'+empty("Nenhum serviço encontrado.")+'</td></tr>';
     const map=itemMap();
     const sorted=entries.slice().sort((a,b)=>b.work_date.localeCompare(a.work_date)||b.created_at.localeCompare(a.created_at));
@@ -323,8 +323,12 @@
     renderPhotos(photos);
     renderFood(orders);
     renderReport(rows,entries,photos,orders);
+    window.RL_CENTRAL_ENHANCE?.update?.({rows,entries,photos,orders,start:state.start,end:state.end,contract:state.contract});
   }
   async function navigate(screen) {
+    $("workspace").hidden=true;
+    $("main").hidden=false;
+    document.querySelectorAll(".app-button[data-app]").forEach(b=>b.classList.remove("active"));
     state.screen=screen;
     for(const button of document.querySelectorAll("[data-screen]"))button.classList.toggle("active",button.dataset.screen===screen);
     for(const section of document.querySelectorAll(".screen")){
