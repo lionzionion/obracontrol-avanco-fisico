@@ -1,0 +1,131 @@
+/* RL Engenharia — identidade visual oficial para todas as telas do ObraControl */
+:root {
+  --bg:#071524;
+  --surface:#10253a;
+  --surface2:#15324a;
+  --surface3:#1b3b52;
+  --border:#29465e;
+  --text:#f4f8fd;
+  --muted:#afc6d9;
+  --accent:#99cb24;
+  --accent2:#0babe0;
+  --amber:#ffcd68;
+  --green:#9ace20;
+  --red:#f28d91;
+  --radius:18px;
+  --shadow:0 16px 48px #01091440;
+}
+body {background:radial-gradient(circle at 72% 0%,#0e3c59 0,transparent 30%),linear-gradient(165deg,#071525,#0a1a2b 80%);color:var(--text)}
+body::before{content:"";position:fixed;z-index:-1;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0,transparent 119px,#ffffff04 120px)}
+.app {grid-template-columns:260px minmax(0,1fr)}
+.sidebar {background:linear-gradient(175deg,#0e263a,#0a192b 78%);border-right:1px solid #265c7a;padding:20px 15px 16px;gap:16px}
+.sidebar::before{content:"";display:block;position:absolute;top:0;left:0;width:100%;height:4px;background:linear-gradient(90deg,#0aace0 0 45%,#9ace20 45% 100%)}
+.logo{display:flex;flex-direction:column;align-items:start;margin:0 0 12px;border-bottom:1px solid #304c60;padding:10px 6px 19px}
+.rl-brand-logo{display:block;width:min(100%,240px);height:auto;object-fit:contain;filter:drop-shadow(0 8px 18px #02091625)}
+.rl-brand-description{font-size:10px;color:#b6d0dd;letter-spacing:1.1px;font-weight:800;margin-top:6px}
+.navlabel{color:#89a9be;margin:2px 14px 0}
+.nav button{transition:background .16s,border-color .16s;color:#b8cadb;border:1px solid transparent;min-height:46px}
+.nav button:hover{background:#143952;border-color:#265a79}
+.nav button.active{background:linear-gradient(100deg,#1c4e5a,#183d49);border-color:#7ba92f;color:#e9ffba;box-shadow:inset 3px 0 0 #9ace20}
+.nav button.active span{color:#9ace20}
+.sidecard{background:linear-gradient(135deg,#153b52,#173044);border-color:#2c6a85;position:relative;overflow:hidden}
+.sidecard:before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:#99cc23}
+.sidecard b{color:#dcf5c5}
+.sidefoot{font-weight:700;letter-spacing:.2px;line-height:1.8}
+.main{padding-top:23px}
+.main>.eyebrow{letter-spacing:1.6px;color:#a6d744}
+.main>.heading{margin-top:12px;padding:0 0 16px;border-bottom:1px solid #2b4d64}
+.heading h1{font-weight:850;letter-spacing:-1.2px}
+.heading h1 .rl-highlight{color:#a4d52b}
+.heading p{color:#b8cbd8}
+.tag.badgeCloud,.tag{border-color:#507932;background:#193a2f;color:#d4f4a2}
+.cloudbar{margin:0 0 12px}
+.cloudbar button,#logoutButton{border-color:#345e76;background:#173a52;color:#e9f8ff}
+.cloudbar button:hover,#logoutButton:hover{border-color:#93bc37;color:#ddf4a5}
+.contractpicker{padding:0 0 3px}
+.contractpicker button{border-color:#34536a;background:#102c40}
+.contractpicker button.active{border-color:#9ace20;background:#274637;color:#e7ffca}
+.note,.info{background:linear-gradient(120deg,#153748,#123449);border:1px solid #30617a;border-left:4px solid #a2d228;color:#dfedf7}
+.note strong{color:#c5ed87}
+.stat,.panel,.itemcard,.kpi,.authPanel{border-color:#2e5068;background:linear-gradient(165deg,#142f45,#0f2437);box-shadow:0 18px 42px #020d1d1a}
+.stat{position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;top:0;left:18px;right:18px;height:3px;border-radius:0 0 7px 7px;background:linear-gradient(90deg,#0bb5e8,#a4d92d);opacity:.9}
+.stat .v{color:#ecf8ff}
+.panel{border-radius:18px}
+.panel h2,.toolbar h2{color:#ecf7ff}
+.paneltop small,.helpText,.caption{color:#afc6d7}
+.btn{border-color:#36617b;background:#19384e;color:#e7f4fe;transition:transform .16s,background .16s,border-color .16s}
+.btn:hover{background:#21506a;border-color:#57a5c3}
+.btn:active{transform:translateY(1px)}
+.btn.primary{border-color:#a8d92f;background:linear-gradient(125deg,#b4e143,#8fc528);color:#102415;box-shadow:0 5px 20px #8fce2530}
+.btn.primary:hover{background:linear-gradient(125deg,#c8ef67,#a2d337);box-shadow:0 8px 24px #a3df3240}
+.btn:focus-visible,button:focus-visible{outline:2px solid #c8ed70;outline-offset:3px}
+.track{background:#21394b;height:11px}
+.track .fill{background:linear-gradient(90deg,#7cb71e,#b6e64b);box-shadow:0 0 15px #91c72a55}
+.track.measure .fill{background:linear-gradient(90deg,#007cc0,#15bef1);box-shadow:0 0 15px #11b1ef45}
+.bigpercent{color:#b4df55}
+.input,.select,.textarea,.authPanel input{background:#0a2031;border-color:#365b72;color:#f3f8ff}
+.input:focus,.select:focus,.textarea:focus,.authPanel input:focus{border-color:#99ce25}
+.itemcard:hover{border-color:#7cae37;background:#143249}
+.servicecode{border-color:#456c86;background:#21455b;color:#cde9fd}
+.pill{color:#cbe4ef;background:#183c51;border-color:#36586b}
+.empty{border-color:#335a76;background:#112c40}
+.dialog{border:1px solid #36718a;background:#10283b}
+.dialog::backdrop{background:#030f1be6;backdrop-filter:blur(5px)}
+.dialogTop{border-bottom:1px solid #34556d;padding-bottom:14px}
+.dialogClose{color:#d6e8f2}
+.uploadzone{border-color:#417b87;background:#123548}
+.photoGrid button{border-color:#355d76}
+.phototile{border-color:#396880}
+.timeline .logrow{background:#10273c}
+.lightbox{border-radius:18px;box-shadow:0 28px 70px #0009}
+.toast{border-color:#669d32;background:#264b3a;color:#efffe0}
+.footer{border-top:1px solid #315770;margin-top:40px;padding:24px 0 10px;color:#abc0ce}
+.rl-page-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 14px;padding:13px 17px;background:linear-gradient(96deg,#143e59,#123449);border:1px solid #2d6480;border-left:4px solid #95ca24;border-radius:13px}
+.rl-page-banner .kicker{font-size:10px;font-weight:800;letter-spacing:2px;color:#b8df71;text-transform:uppercase}
+.rl-page-banner .label{font-size:14px;font-weight:800;color:#f6faff}
+.rl-page-banner img{width:105px;height:auto;opacity:.93}
+.rl-badge{display:inline-flex;gap:6px;align-items:center;padding:5px 9px;border-radius:9px;background:#285432;color:#d6f5a8;font-size:10px;font-weight:900;letter-spacing:.6px;white-space:nowrap}
+.rl-mobileBrand{display:none}
+.rl-footerBrand{display:inline-flex;align-items:center;gap:10px;color:#cfe3ed;font-size:12px;font-weight:700}
+.rl-footerBrand img{width:76px;height:auto}
+.rl-dialogBrand{display:flex;align-items:center;gap:7px;min-height:26px;margin-bottom:9px}
+.rl-dialogBrand img{width:96px;height:auto}
+.rl-dialogBrand span{color:#c0df83;font-size:10px;font-weight:850;letter-spacing:.6px}
+.authGate{background:radial-gradient(circle at 15% 10%,#104d76,transparent 45%),radial-gradient(circle at 100% 90%,#35501650,transparent 55%),#071320}
+.authGate::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.32;background-image:linear-gradient(#51a4be15 1px,transparent 1px),linear-gradient(90deg,#51a4be15 1px,transparent 1px);background-size:46px 46px}
+.authPanel{position:relative;width:min(470px,100%);padding:30px 34px;border-color:#2f6b83;border-radius:24px;box-shadow:0 25px 90px #000a;overflow:hidden}
+.authPanel::before{content:"";position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#11b8e4 0 47%,#a9d538 47% 100%)}
+.rl-loginLogo{display:block;width:min(300px,100%);max-height:110px;object-fit:contain;margin:0 auto 17px;filter:drop-shadow(0 6px 18px #0007)}
+.authPanel h1{text-align:center;margin:3px 0;font-size:26px}
+.authPanel p{text-align:center}
+.authPanel .rl-authIntro{font-weight:700;color:#cbe2ed;margin-bottom:18px}
+.authPanel button[type="submit"]{background:linear-gradient(125deg,#b7e041,#8ac51d);color:#122b11}
+.authPanel button[type="submit"]:hover{filter:brightness(1.08)}
+.authPanel label{color:#cbddea}
+.authPanel .eyebrow{text-align:center;color:#9dcb2e}
+.rl-brand-app-heading{display:block}
+@media(max-width:1000px){.app{grid-template-columns:224px minmax(0,1fr)}.sidebar .rl-brand-logo{width:198px}}
+@media(max-width:850px){
+ .app{display:block}
+ .main{padding:14px 14px 98px}
+ .rl-mobileBrand{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #2c5369;margin:0 -1px 16px;padding:5px 0 12px}
+ .rl-mobileBrand img{width:166px;max-height:60px;object-fit:contain;object-position:left}
+ .rl-mobileBrand small{display:block;font-size:10px;color:#aad36b;text-align:right;max-width:115px;line-height:1.35;font-weight:800}
+ .main>.eyebrow{font-size:9px}
+ .mobileNav{background:#0c2335f7;border-color:#39718b}
+ .mobileNav button.active{color:#d4f0a0;background:#28503b;box-shadow:inset 0 2px 0 #9ad027}
+ .heading{margin:0 0 8px}
+ .rl-page-banner{margin:15px 0 12px;padding:11px 13px}
+ .rl-page-banner img{width:82px}
+ .cloudbar{justify-content:flex-start;flex-wrap:wrap}
+ .footer{margin-top:30px}
+}
+@media(max-width:480px){
+ .rl-page-banner .label{font-size:12px}
+ .rl-page-banner img{width:68px}
+ .rl-mobileBrand img{width:140px}
+ .authPanel{padding:24px 19px}
+ .authPanel h1{font-size:24px}
+ .heading h1{font-size:26px}
+}
