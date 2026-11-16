@@ -1,6 +1,6 @@
 # RL Engenharia | ObraControl — acompanhamento físico de obras
 
-Aplicativo web para **apontamento diário de serviços**, **volumes e percentuais**, **medições aprovadas** e **fotografias por item** da obra AMBEV Itapissuma. A interface **não exibe preços nem valores em reais**.
+Aplicativo web para **apontamento diário de serviços**, **volumes e percentuais**, **medições aprovadas** e **fotografias por item** da obra AMBEV Itapissuma. A interface de produção não exibe valores monetários. O módulo privado **BMs** mostra os valores oficiais apenas a administradores autenticados.
 
 
 ## Identidade visual RL Engenharia
@@ -70,6 +70,25 @@ Para corrigir um percentual lançado incorretamente (ex.: **59%**) sem apagar fo
 
 **Permissões e consistência:** somente administradores ativos podem alterar registros já existentes. Não é permitido alterar o serviço, o tipo (produção/medição) ou a autoria original. A correção de uma medição não pode superar a produção acumulada; a correção de produção não pode deixá-la abaixo do volume já medido. A operação é salva na nuvem, não apenas no dispositivo.
 
+## Controle de BMs (integração com a Solutio)
+
+O módulo **BMs**, restrito a administradores, mantém as medições oficiais em um livro separado dos apontamentos diários (sem duplicar serviços). A importação inicial dos quatro PDFs inclui **32 linhas com medições positivas**; as demais continuam representadas como zero. **Os PDFs anexados nesta conversa ainda precisam ser enviados pelo botão Anexar PDF no aplicativo**, para ficarem no bucket privado. Nenhuma planilha de custos ou PDF foi colocado no repositório público.
+
+| Boletim | Contrato | Status no aplicativo | Valor da medição no PDF |
+| --- | --- | --- | ---: |
+| BM 01 | Gabiões e drenagem | Aprovado, conforme informação da gestão | R$ 132.161,06 |
+| BM 02 | Gabiões e drenagem | Aprovado, conforme informação da gestão | R$ 658.176,33 |
+| BM 03 | Gabiões e drenagem | **Pendente** | R$ 306.965,72 |
+| BM 01 | Demolição e terraplenagem | **Prévia — não aprovada** | R$ 119.828,80 |
+
+Para o serviço **B.2.1**, o BM 01 mediu **0,10 (10%)** e o BM 02 mediu **0,20 (20%)**, resultando em **0,30 (30%) aprovado**; o BM 03 contém **0,20 pendente**, que não entra na soma aprovada. O acumulado é calculado a partir da **medição incremental atual de cada BM**, nunca pela soma dos campos "Total acumulado" de cada PDF.
+
+**Aditivos:** a seção ADITIVOS do BM 03 contém códigos repetidos do contrato-base. Seus itens foram registrados em seção distinta, sem vínculo automático ao serviço original. Na prévia de Demolição, o item 5.2 não aparece no catálogo atual de 70 itens e foi preservado como não vinculado, para conferência.
+
+O aplicativo permite anexar ou abrir PDFs privados, exportar CSV, adicionar BMs futuros como prévia, conferir valores e corrigir quantitativos de BMs não aprovados. Um BM aprovado tem suas linhas bloqueadas contra edição. A passagem de pendente para aprovado exige confirmação do administrador. O sistema alerta quando o acumulado anterior informado no PDF diverge dos BMs anteriores aprovados.
+
+**Segurança:** tabelas `obc_bms` e `obc_bm_lines` protegidas por RLS, acesso exclusivo para administradores ativos. Documentos armazenados no bucket privado `obc-bm-pdfs`; URLs assinadas e temporárias. Os lançamentos de produção e medição já existentes em `obc_entries` não foram alterados.
+
 ## Quantidades, percentuais e metas
 
 - Avanço executado (%) = quantidade executada acumulada ÷ meta física × 100;
@@ -85,6 +104,8 @@ O banco impede a aprovação de medições acima do volume executado. Quantidade
 Migrações SQL versionadas:
 - `supabase/migrations/20261116113000_obracontrol_shared_cloud_tables_v1.sql` — tabelas originais;
 - `supabase/migrations/20261116205731_obracontrol_edit_entries_v2.sql` — correção segura e trilha de última edição.
+- `supabase/migrations/20261116215204_obracontrol_bm_ledgers_and_private_docs.sql` — tabelas e bucket privados para BMs.
+- `supabase/migrations/20261116220121_obracontrol_bm_approved_integrity_guards.sql` — travas de integridade de boletins aprovados.
 
 Estrutura:
 - `public.obc_items` — catálogo de serviços;
@@ -111,6 +132,7 @@ O frontend utiliza somente a **chave pública** do Supabase. Não há chave de s
 | --- | --- |
 | `index.html` | Aplicativo móvel e desktop, autenticação e sincronização |
 | `rl-theme.css` e `rl-brand.js` | Identidade RL em todas as telas |
+| `bm-module.js` e `bm-theme.css` | Controle de BMs, PDFs privados, recálculo por item e aprovação |
 | `assets/rl-logo.svg` | Marca RL usada na interface |
 | `itens.json` | Catálogo inicial de 70 serviços, sem preços |
 | `supabase/migrations/*.sql` | Tabelas, validações, bucket de fotos e RLS |
