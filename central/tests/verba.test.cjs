@@ -20,7 +20,7 @@ assert.equal(q.goal(item).planned,1,"Meta contratual continua em 1 VB");
 assert.equal(q.goal(item).unit,"VB","Unidade exibida deve ser VB");
 assert.equal(q.goal(item,{unit:"%",planned:100}).planned,1,"Configuração percentual não deve criar 100 verbas");
 assert.equal(q.quantity(item,{unit:"%",planned:100},30),.3,"Configuração percentual converte produção");
-assert.equal(normal(10)+normal(20),.3,"Lançamentos acumulados precisam somar frações");
+assert.ok(Math.abs((normal(10)+normal(20))-.3)<1e-10,"Lançamentos acumulados precisam somar frações");
 assert.equal((normal(38)/q.goal(item).planned)*100,38,"38% é a razão entre 0,38 e 1 VB");
 const physical={id:"d_2",unit:"m³",planned:150};
 assert.equal(q.quantity(physical,null,38),38,"Metros cúbicos não são alterados");
