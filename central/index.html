@@ -63,6 +63,7 @@
         <button class="nav-btn" data-screen="photos" type="button"><span>▧</span> Galeria da obra</button>
         <button class="nav-btn" data-screen="food" type="button"><span>◈</span> Alimentação e equipe</button>
         <button class="nav-btn" data-screen="report" type="button"><span>▣</span> Relatório gerencial</button>
+        <button class="nav-btn" data-screen="access" type="button" id="directorNav"><span>♙</span> Acesso da Diretoria</button>
       </nav>
       <div class="sidebar-heading links-heading">APLICATIVOS INTEGRADOS</div>
       <button type="button" class="app-button" data-app="obras" aria-label="Abrir ObraControl dentro da Central">
@@ -155,6 +156,27 @@
           <div id="reportContent" class="report-content"></div>
           <div class="info-note">Documento gerado com base nos registros existentes no Supabase. Para emissão formal de RDO ou medição contratual, confira evidências, metas e aprovação da fiscalização.</div>
           <button class="btn primary report-print no-print" id="reportPrintBtn">Imprimir ou salvar relatório em PDF</button></article>
+        </section>
+        <section id="screen-access" class="screen" hidden>
+          <article class="panel access-panel">
+            <div class="panel-head"><div><h2>Criar acesso exclusivo da Diretoria</h2><p>Usuário individual para acompanhar a obra com permissão somente de consulta.</p></div><span class="tag">SOMENTE ADMINISTRADOR</span></div>
+            <div class="info-note"><strong>Segurança:</strong> o perfil Diretoria acessa produção, fotos e indicadores, mas não pode lançar ou modificar dados, aprovar medições nem gerenciar pedidos. A senha é gerada pelo servidor e só aparece ao ser criada ou redefinida.</div>
+            <form id="directorCreateForm" class="access-form">
+              <div><label for="directorName">Nome do responsável</label><input id="directorName" type="text" value="Diretoria RL" minlength="3" maxlength="80" required autocomplete="off"></div>
+              <div><label for="directorUsername">Usuário de acesso</label><input id="directorUsername" type="text" value="diretoria.rl" minlength="3" maxlength="30" pattern="[a-z][a-z0-9._-]{2,29}" required autocomplete="off"></div>
+              <div><label for="directorCompany">Empresa</label><select id="directorCompany"><option value="RL">RL Construções</option><option value="SOLUTIO">Solutio</option></select></div>
+              <button type="submit" class="btn primary" id="directorSubmitBtn">Gerar usuário e senha</button>
+            </form>
+            <div id="directorFeedback" role="status" aria-live="polite" class="access-feedback"></div>
+            <div id="directorResult" class="access-result" hidden>
+              <h3>Credenciais geradas — copie agora</h3>
+              <p>Estas informações não serão armazenadas no GitHub nem reapresentadas pelo sistema.</p>
+              <div><small>Usuário</small><code id="directorCreatedUser"></code></div>
+              <div><small>Senha temporária</small><code id="directorCreatedPassword"></code></div>
+              <button class="btn primary" type="button" id="directorCopyBtn">Copiar usuário, senha e link</button>
+              <p class="subtle">Envie em mensagem privada e oriente a pessoa a alterar sua senha após o primeiro acesso.</p>
+            </div>
+          </article>
         </section>
         <footer><span>RL ENGENHARIA · FAZENDO ACONTECER</span><span id="syncedAt">Aguardando sincronização</span></footer>
       </main>
