@@ -134,3 +134,16 @@ body{background:radial-gradient(circle at 72% -12%,rgba(40,102,123,.11),transpar
 .viewer #directorNav{display:none!important}
 @media(max-width:730px){.access-form{grid-template-columns:1fr}.access-result>div{flex-direction:column;align-items:flex-start}}
 @media print{#screen-access{display:none!important}}
+
+.password-dialog{border:1px solid #446a7c;background:#10283d;color:#eff7f8;border-radius:16px;max-width:min(92vw,460px);width:100%;padding:28px;box-shadow:0 25px 70px #0008}
+.password-dialog::backdrop{background:#030b11b8}
+.password-form{display:flex;flex-direction:column;gap:12px}
+.password-form h2{font-size:1.22rem}
+.password-form p{color:#afc8d3;font-size:.78rem}
+.password-form label{font-weight:700;color:#d1e5e9;font-size:.81rem}
+.password-form input{border:1px solid #3d5e76;background:#0a2234;color:#eef5f8;border-radius:9px;padding:12px;font:inherit}
+.password-form #passwordFeedback{color:#e9a9a1;min-height:20px;margin:0}
+.password-actions{display:flex;gap:12px;justify-content:flex-end}
+.password-actions button{flex:1}
+@media(max-width:940px){.top-actions #passwordSettingsButton{font-size:.7rem;padding:7px}}
+@media print{.password-dialog{display:none!important}}
