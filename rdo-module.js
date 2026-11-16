@@ -391,6 +391,30 @@ const mod={
    }).catch(err=>{this.jsPdfLoading=null;throw err});
    return this.jsPdfLoading;
  },
+ async brandLogoPng(){
+   if(this.logoPng)return this.logoPng;
+   if(this.logoPromise)return this.logoPromise;
+   this.logoPromise=(async()=>{
+     const response=await fetch('./assets/rl-logo.svg',{cache:'force-cache'});
+     if(!response.ok)throw Error('Logomarca oficial da RL não está acessível.');
+     const svg=await response.blob(),url=URL.createObjectURL(svg);
+     try{
+       const image=new Image();
+       await new Promise((resolve,reject)=>{
+         image.onload=resolve;image.onerror=()=>reject(Error('Não foi possível renderizar a logomarca RL'));
+         image.src=url;
+       });
+       const canvas=document.createElement('canvas');canvas.width=1121;canvas.height=329;
+       const ctx=canvas.getContext('2d');
+       if(!ctx)throw Error('Canvas não disponível para colocar a logomarca no PDF.');
+       ctx.clearRect(0,0,canvas.width,canvas.height);
+       ctx.drawImage(image,0,0,canvas.width,canvas.height);
+       this.logoPng=canvas.toDataURL('image/png');
+       return this.logoPng;
+     }finally{URL.revokeObjectURL(url)}
+   })().catch(e=>{this.logoPromise=null;throw e});
+   return this.logoPromise;
+ },
  async photoJpeg(photo){
    const path=photo.path||this.bridge.state.photos.find(p=>p.id===photo.photo_id)?.path;
    if(!path)throw Error('Caminho da foto não encontrado: '+photo.source_name);
@@ -409,20 +433,28 @@ const mod={
  },
  async buildPdf(strictImages){
    const JsPDF=await this.ensureJsPdf();
+   const logoPng=await this.brandLogoPng();
    const d=this.draft;
    const pdf=new JsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
    const PW=210,PH=297,L=15,R=15,CW=PW-L-R;
    let y=43;
    const addHeader=()=>{
      pdf.setFillColor(11,35,58);pdf.rect(0,0,PW,33,'F');
-     pdf.setFillColor(54,210,186);pdf.roundedRect(15,8,18,18,3,3,'F');
-     pdf.setFont('helvetica','bold');pdf.setFontSize(12);pdf.setTextColor(4,37,46);pdf.text('RL',24,19.7,{align:'center'});
-     pdf.setTextColor(242,250,253);pdf.setFontSize(13);pdf.text('RL ENGENHARIA',40,14.5);
-     pdf.setFontSize(8);pdf.setFont('helvetica','normal');pdf.text('RELATORIO DIARIO DE OBRA | AMBEV - ITAPISSUMA/PE',40,21.5);
+     pdf.addImage(logoPng,'PNG',13,5,64,18.8,undefined,'FAST');
+     pdf.setFont('helvetica','bold');pdf.setFontSize(10.5);pdf.setTextColor(242,250,253);
+     pdf.text('RELATORIO DIARIO DE OBRA',83,13.7);
+     pdf.setFont('helvetica','normal');pdf.setFontSize(7.4);
+     pdf.text('AMBEV ITAPISSUMA/PE | RL ENGENHARIA',83,20.3);
+     pdf.setFontSize(8);
      pdf.text(seq(this.current||d)+'   |   '+dateBR(d.work_date),195,29.2,{align:'right'});
-     if(this.current?.status!=='final'&&!strictImages){
-       pdf.setFillColor(246,233,207);pdf.roundedRect(144,6,51,7,1.4,1.4,'F');
-       pdf.setTextColor(95,66,18);pdf.setFontSize(8);pdf.setFont('helvetica','bold');pdf.text('RASCUNHO - CONFERIR',169.5,10.8,{align:'center'});
+     if(this.current?.status==='approved'){
+       pdf.setFillColor(31,103,76);pdf.roundedRect(163,4.3,32,6.5,1.6,1.6,'F');
+       pdf.setTextColor(212,251,225);pdf.setFont('helvetica','bold');pdf.setFontSize(7.2);
+       pdf.text('APROVADO',179,8.8,{align:'center'});
+     }else if(this.current?.status!=='final'){
+       pdf.setFillColor(246,233,207);pdf.roundedRect(146,4.3,49,6.5,1.6,1.6,'F');
+       pdf.setTextColor(95,66,18);pdf.setFontSize(7);pdf.setFont('helvetica','bold');
+       pdf.text(this.current?.status==='submitted'?'EM APROVACAO':this.current?.status==='returned'?'DEVOLVIDO - REVISAR':'RASCUNHO - CONFERIR',170.5,8.8,{align:'center'});
      }
      pdf.setTextColor(33,49,66);y=41;
    };
@@ -489,14 +521,29 @@ const mod={
      paragraph(p.caption||'Registro fotografico da obra.',8.5,4.1,[55,69,80]);
      y+=2;
    }
-   ruleTitle('05. RESPONSAVEIS / CONFERENCIA');
-   space(33);
-   pdf.setDrawColor(117,140,153);pdf.line(L,y+12,L+83,y+12);
-   pdf.line(L+97,y+12,L+CW,y+12);
+   ruleTitle('05. ELABORACAO E APROVACAO');
+   field('Elaborado por / responsavel tecnico',d.engineer_name);
+   if(this.current?.status==='approved'){
+     field('SITUACAO','APROVADO INTERNAMENTE');
+     field('Aprovado por',d.approved_name);
+     field('Funcao do aprovador',d.approver_job_title||'Administrador do sistema');
+     field('Data e hora da aprovacao (Recife/PE)',whenBR(d.approved_at));
+     if(d.approval_note)field('Observacao da aprovacao',d.approval_note);
+   }else if(this.current?.status==='submitted'){
+     field('SITUACAO','EM APROVACAO');
+     field('Enviado para analise em (Recife/PE)',whenBR(d.submitted_at));
+   }else if(this.current?.status==='returned'){
+     field('SITUACAO','DEVOLVIDO PARA AJUSTES');
+     field('Motivo da devolucao',d.return_reason);
+   }else if(this.current?.status==='final'){
+     field('SITUACAO','FINALIZADO NA VERSAO ANTERIOR (sem registro de aprovador)');
+   }else field('SITUACAO','RASCUNHO - SEM APROVACAO');
+   space(29);
+   pdf.setDrawColor(117,140,153);pdf.line(L,y+12,L+83,y+12);pdf.line(L+97,y+12,L+CW,y+12);
    pdf.setFont('helvetica','bold');pdf.setFontSize(8.5);pdf.setTextColor(46,65,78);
    pdf.text(d.engineer_name||'Engenheiro responsavel (a preencher)',L,y+17);
-   pdf.text(d.reviewer_name||'Fiscalizacao / recebimento',L+97,y+17);y+=27;
-   paragraph('Documento emitido pelo ObraControl. A geracao do PDF nao equivale a assinatura digital ou aprovacao da contratante.',7.7,4.1,[105,111,119]);
+   pdf.text(d.reviewer_name||'Conferencia / recebimento',L+97,y+17);y+=27;
+   paragraph('Aprovacao administrativa registrada no ObraControl, sem assinatura digital. Nao substitui o aceite formal da Solutio nem conferencias contratuais.',7.7,4.1,[105,111,119]);
    for(let page=1;page<=pdf.getNumberOfPages();page++){
      pdf.setPage(page);pdf.setDrawColor(205,218,225);pdf.line(L,283,PW-R,283);
      pdf.setFont('helvetica','normal');pdf.setTextColor(105,120,134);pdf.setFontSize(7.5);
