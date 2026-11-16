@@ -1,0 +1,30 @@
+/* Teste de regressão para interpretação de verbas na Central RL.
+   Executar: node central/tests/verba.test.cjs */
+"use strict";
+const assert=require("node:assert/strict");
+const vm=require("node:vm");
+const fs=require("node:fs");
+const src=fs.readFileSync("central/quantity-normalization.js","utf8");
+const env={window:{}};
+vm.runInNewContext(src,env,{filename:"quantity-normalization.js"});
+const q=env.window.RL_QUANTITY;
+assert.ok(q,"O normalizador precisa estar disponível");
+const item={id:"g_B.2.13",unit:"vb",planned:1};
+const normal=qty=>q.quantity(item,undefined,qty);
+assert.equal(normal(38),.38,"38 por cento devem corresponder a 0,38 VB");
+assert.equal(normal(100),1,"100 por cento correspondem a 1 verba");
+assert.equal(normal(0),0,"Nenhuma execução");
+assert.equal(normal(58.98),.5898,"Percentuais com decimais preservados");
+assert.equal(normal(.01),.0001,"0,01 percentual corresponde a 0,0001 verba");
+assert.equal(q.goal(item).planned,1,"Meta contratual continua em 1 VB");
+assert.equal(q.goal(item).unit,"VB","Unidade exibida deve ser VB");
+assert.equal(q.goal(item,{unit:"%",planned:100}).planned,1,"Configuração percentual não deve criar 100 verbas");
+assert.equal(q.quantity(item,{unit:"%",planned:100},30),.3,"Configuração percentual converte produção");
+assert.equal(normal(10)+normal(20),.3,"Lançamentos acumulados precisam somar frações");
+assert.equal((normal(38)/q.goal(item).planned)*100,38,"38% é a razão entre 0,38 e 1 VB");
+const physical={id:"d_2",unit:"m³",planned:150};
+assert.equal(q.quantity(physical,null,38),38,"Metros cúbicos não são alterados");
+assert.equal(q.goal(physical).planned,150,"Meta de outros itens deve ficar inalterada");
+assert.equal(q.quantity(item,{unit:"m²",planned:200},38),38,"Verba reconfigurada em m² mantém quantitativo físico");
+assert.equal(q.goal(item,{unit:"m²",planned:200}).unit,"m²","A unidade de controle físico deve ser preservada");
+console.log("OK: verbas convertidas para frações e serviços não-VB preservados.");
