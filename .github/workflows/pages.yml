@@ -47,10 +47,18 @@ jobs:
           node --check rl-brand.js
           node --check bm-module.js
           node --check central/dashboard.js
+          node --check central/enhancements.js
+          node --check central/ui-icons.js
           test -s central/index.html
           test -s central/dashboard.css
+          test -s central/premium.css
           grep -q 'dashboard.js' central/index.html
-          grep -q 'dashboard.css' central/index.html
+          grep -q 'enhancements.js' central/index.html
+          grep -q 'ui-icons.js' central/index.html
+          grep -q 'premium.css' central/index.html
+          grep -q 'id="focusServiceSelect"' central/index.html
+          grep -q 'id="dailyServiceSelect"' central/index.html
+          grep -q 'id="workFrame"' central/index.html
           test -s assets/rl-logo.svg
           test -s rl-theme.css
           test -s bm-theme.css
