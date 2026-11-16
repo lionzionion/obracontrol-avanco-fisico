@@ -243,8 +243,8 @@ async function init(){
  el('reloadCloudButton').addEventListener('click',reload);
  if(!cloud){el('authError').textContent='Falha ao carregar conexão. Verifique sua internet e atualize esta página.';return}
  cloud.auth.onAuthStateChange((event,session)=>{
-  if(event==='SIGNED_OUT'){void syncUser(null)}
-  else if(event==='SIGNED_IN'||event==='INITIAL_SESSION'){void syncUser(session)}
+  if(event==='SIGNED_OUT'){setTimeout(()=>{void syncUser(null)},0)}
+  else if((event==='SIGNED_IN'||event==='INITIAL_SESSION')&&session){setTimeout(()=>{if(state.user?.id!==session.user.id)void syncUser(session)},0)}
  });
  try{const {data,error}=await cloud.auth.getSession();if(error)throw error;await syncUser(data.session)}
  catch(err){console.error(err);el('authError').textContent='Não foi possível estabelecer conexão. Tente novamente.'}
