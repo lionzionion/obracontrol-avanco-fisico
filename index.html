@@ -82,30 +82,50 @@ function putOne(store,obj){return new Promise((resolve,reject)=>{const tx=state.
 function deleteOne(store,id){return new Promise((resolve,reject)=>{const tx=state.db.transaction(store,'readwrite');tx.objectStore(store).delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
 function clearAll(){return new Promise((resolve,reject)=>{const tx=state.db.transaction(['entries','photos','configs'],'readwrite');for(const store of ['entries','photos','configs'])tx.objectStore(store).clear();tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
 function replaceAll(data){return new Promise((resolve,reject)=>{const tx=state.db.transaction(['entries','photos','configs'],'readwrite');for(const s of ['entries','photos','configs'])tx.objectStore(s).clear();for(const row of data.entries)tx.objectStore('entries').put(row);for(const row of data.photos)tx.objectStore('photos').put(row);for(const row of data.configs)tx.objectStore('configs').put(row);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+async function fetchPaged(table,fields,orderField){
+ const result=[];
+ for(let offset=0;offset<100000;offset+=1000){
+  const {data,error}=await cloud.from(table).select(fields).order(orderField,{ascending:false}).range(offset,offset+999);
+  if(error)throw error;
+  result.push(...(data||[]));
+  if((data||[]).length<1000)break;
+ }
+ return result;
+}
 async function reload(){
  if(!state.user||cloudReloading)return;
- cloudReloading=true;const badge=el('connectionBadge');badge.textContent='● SINCRONIZANDO';badge.className='tag badgeWait';
+ cloudReloading=true;
+ const badge=el('connectionBadge');badge.textContent='● SINCRONIZANDO';badge.className='tag badgeWait';
  try{
-  const [ent,pho,con]=await Promise.all([
-   cloud.from('obc_entries').select('id,item_id,kind,work_date,qty,front,author,note,created_at,created_by').order('work_date',{ascending:false}).limit(5000),
-   cloud.from('obc_photos').select('id,entry_id,item_id,path,name,created_at').order('created_at',{ascending:false}).limit(5000),
-   cloud.from('obc_configs').select('item_id,planned,unit')
+  const [items,rows,photos,configs]=await Promise.all([
+   fetchPaged('obc_items','id,contract,code,description,unit,planned,group_code','id'),
+   fetchPaged('obc_entries','id,item_id,kind,work_date,qty,front,author,note,created_at,created_by','created_at'),
+   fetchPaged('obc_photos','id,entry_id,item_id,path,name,created_at','created_at'),
+   fetchPaged('obc_configs','item_id,planned,unit','item_id')
   ]);
-  if(ent.error)throw ent.error;if(pho.error)throw pho.error;if(con.error)throw con.error;
-  const rows=ent.data||[],photos=pho.data||[];
+  if(items.length){
+   const catalog=items.map(i=>({id:i.id,contract:i.contract,code:i.code,description:i.description,unit:i.unit,planned:Number(i.planned),group:i.group_code}));
+   catalog.sort((a,b)=>a.contract.localeCompare(b.contract)||a.code.localeCompare(b.code,'pt-BR',{numeric:true}));
+   ITEMS.splice(0,ITEMS.length,...catalog);
+  }
   const nextPhotos=photos.map(p=>({id:p.id,entryId:p.entry_id,itemId:p.item_id,path:p.path,name:p.name,dataUrl:'',createdAt:p.created_at}));
   if(nextPhotos.length){
    for(let i=0;i<nextPhotos.length;i+=100){
-    const slice=nextPhotos.slice(i,i+100),{data,error}=await cloud.storage.from('obc-fotos').createSignedUrls(slice.map(p=>p.path),3600);
-    if(!error && Array.isArray(data))data.forEach((p,j)=>{if(p?.signedUrl)slice[j].dataUrl=p.signedUrl});
+    const part=nextPhotos.slice(i,i+100);
+    const {data,error}=await cloud.storage.from('obc-fotos').createSignedUrls(part.map(p=>p.path),3600);
+    if(!error&&Array.isArray(data))data.forEach((p,j)=>{if(p?.signedUrl)part[j].dataUrl=p.signedUrl});
    }
   }
   state.entries=rows.map(e=>({id:e.id,itemId:e.item_id,kind:e.kind,date:e.work_date,qty:Number(e.qty),front:e.front,author:e.author,note:e.note,createdAt:e.created_at,createdBy:e.created_by}));
   state.photos=nextPhotos;
-  state.configs=Object.fromEntries((con.data||[]).map(c=>[c.item_id,{id:c.item_id,unit:c.unit,planned:Number(c.planned)}]));
-  render();badge.textContent='● NUVEM ONLINE';badge.className='tag badgeCloud';
- }catch(err){console.error('Erro de sincronização',err);badge.textContent='⚠ SEM CONEXÃO';badge.className='tag badgeWait';toast('Não foi possível atualizar a nuvem: '+(err.message||'erro de conexão'),true)}
- finally{cloudReloading=false}
+  state.configs=Object.fromEntries(configs.map(c=>[c.item_id,{id:c.item_id,unit:c.unit,planned:Number(c.planned)}]));
+  render();
+  badge.textContent='● NUVEM ONLINE';badge.className='tag badgeCloud';
+ }catch(err){
+  console.error('Erro de sincronização',err);
+  badge.textContent='⚠ SEM CONEXÃO';badge.className='tag badgeWait';
+  toast('Não foi possível atualizar a nuvem: '+(err.message||'erro de conexão'),true);
+ }finally{cloudReloading=false}
 }
 function getItem(id){return ITEMS.find(i=>i.id===id)||null}
 function isVB(item){return item&&item.unit.toLowerCase()==='vb'}
