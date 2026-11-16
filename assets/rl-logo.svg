@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1121 329" role="img" aria-labelledby="rlTitle rlDesc">
+<title id="rlTitle">RL Engenharia</title>
+<desc id="rlDesc">Fazendo Acontecer</desc>
+<defs>
+  <linearGradient id="b1" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#09bdee"/><stop offset=".5" stop-color="#0488c4"/><stop offset="1" stop-color="#005787"/></linearGradient>
+  <linearGradient id="b2" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#0ba9e2"/><stop offset="1" stop-color="#006496"/></linearGradient>
+  <linearGradient id="g1" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#d0f544"/><stop offset=".58" stop-color="#a2d329"/><stop offset="1" stop-color="#78ae14"/></linearGradient>
+  <linearGradient id="g2" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#87bb16"/><stop offset="1" stop-color="#5b970d"/></linearGradient>
+  <linearGradient id="type" x1="0" x2="1"><stop stop-color="#b2e52f"/><stop offset="1" stop-color="#8ec420"/></linearGradient>
+  <filter id="shadow" x="-25%" y="-25%" width="150%" height="170%"><feDropShadow dx="1.5" dy="3" stdDeviation="2.5" flood-color="#021221" flood-opacity=".55"/></filter>
+</defs>
+<g filter="url(#shadow)">
+  <path d="M18 73 183 29 191 60 63 101 63 307 18 307Z" fill="url(#b1)"/>
+  <path d="M18 73 62 101 63 307 18 307Z" fill="#007ab2"/>
+  <path d="M62 101 182 66 183 29 192 37 192 157 158 166 158 75 116 91 116 171 94 180 94 93Z" fill="url(#b2)"/>
+  <path d="M116 91 142 83 142 166 116 173Z" fill="#005c92"/>
+  <path d="M117 171 258 120 278 153 162 194 162 307 117 307Z" fill="url(#g1)"/>
+  <path d="M162 194 258 157 258 307 162 307Z" fill="url(#g2)"/>
+  <path d="M258 120 294 142 294 307 258 307Z" fill="#7db413"/>
+  <path d="M117 171 258 120 294 142 162 194Z" fill="#baec39"/>
+  <path d="M206 177 229 169 229 307 206 307Z" fill="#9aca1f" opacity=".75"/>
+</g>
+<g filter="url(#shadow)">
+  <text x="328" y="213" fill="url(#type)" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="103" letter-spacing="-5">RL Engenharia</text>
+  <text x="406" y="288" fill="#edf6fa" stroke="#0d4060" stroke-width=".8" paint-order="stroke" font-family="Georgia,Times New Roman,serif" font-size="52" letter-spacing="1">– Fazendo Acontecer –</text>
+</g>
+</svg>
