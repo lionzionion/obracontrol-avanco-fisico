@@ -44,8 +44,14 @@ jobs:
           console.log('Validados: ' + items.length + ' itens; sem campos monetários');
           NODE
           node --check /tmp/obracontrol.js
-          mkdir -p dist
-          cp index.html itens.json manifest.webmanifest icon.svg sw.js dist/
+          node --check rl-brand.js
+          test -s assets/rl-logo.svg
+          test -s rl-theme.css
+          grep -q 'rl-theme.css' index.html
+          grep -q 'rl-brand.js' index.html
+          mkdir -p dist/assets
+          cp index.html itens.json manifest.webmanifest icon.svg sw.js rl-theme.css rl-brand.js dist/
+          cp assets/rl-logo.svg dist/assets/
           touch dist/.nojekyll
 
       - name: Configurar GitHub Pages
