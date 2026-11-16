@@ -50,6 +50,8 @@
     state.ready=false;
     state.directorCredentials=null;
     if($("directorResult"))$("directorResult").hidden=true;
+    if($("passwordSettingsButton"))$("passwordSettingsButton").hidden=true;
+    if($("directorCreatedPassword"))$("directorCreatedPassword").textContent="";
     document.body.classList.remove("viewer");
   }
   function showApp() {
@@ -58,6 +60,7 @@
     const isViewer=state.profile.role==="diretoria";
     document.body.classList.toggle("viewer",isViewer);
     $("directorNav").hidden=isViewer;
+    $("passwordSettingsButton").hidden=!isViewer;
     $("userLabel").textContent=state.profile.display_name+(isViewer?" · DIRETORIA":" · ADM");
   }
   async function checkAccess(session) {
@@ -462,11 +465,36 @@
       $("directorFeedback").textContent="Não foi possível copiar automaticamente. Copie o usuário e a senha exibidos acima.";
     }
   }
+  async function changeOwnPassword(event){
+    event.preventDefault();
+    if(!state.profile)return;
+    const next=$("newPass").value,confirm=$("confirmPass").value;
+    const status=$("passwordFeedback");
+    if(next.length<12||next.length>72||!/[A-Z]/.test(next)||!/[a-z]/.test(next)||!/[0-9]/.test(next)||!/[^A-Za-z0-9]/.test(next)){
+      status.textContent="Use pelo menos 12 caracteres, com maiúscula, minúscula, número e símbolo.";return;
+    }
+    if(next!==confirm){status.textContent="As senhas não são iguais.";return;}
+    $("savePassword").disabled=true;
+    try{
+      const {error}=await client.auth.updateUser({password:next});
+      if(error)throw error;
+      $("passwordForm").reset();
+      $("passwordDialog").close();
+      setNotice("Sua senha foi alterada com sucesso.");
+    }catch(error){status.textContent="Não foi possível alterar a senha: "+error.message;}
+    finally{$("savePassword").disabled=false;}
+  }
   async function init() {
     defaultRange();
     $("loginForm").addEventListener("submit",signIn);
     $("directorCreateForm").addEventListener("submit",provisionDirector);
     $("directorCopyBtn").addEventListener("click",copyDirectorCredentials);
+    $("passwordSettingsButton").addEventListener("click",()=>{
+      $("passwordFeedback").textContent="";
+      $("passwordDialog").showModal();
+    });
+    $("cancelPassword").addEventListener("click",()=>$("passwordDialog").close());
+    $("passwordForm").addEventListener("submit",changeOwnPassword);
     $("logoutBtn").addEventListener("click",signOut);
     $("refreshBtn").addEventListener("click",loadAll);
     $("applyFilters").addEventListener("click",applyFilters);
