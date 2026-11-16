@@ -47,6 +47,8 @@ jobs:
           node --check rl-brand.js
           node --check bm-module.js
           node --check rdo-module.js
+          node --check central/quantity-normalization.js
+          node central/tests/verba.test.cjs
           node --check central/dashboard.js
           node --check central/enhancements.js
           node --check central/ui-icons.js
@@ -68,6 +70,7 @@ jobs:
           test -s central/dashboard.css
           test -s central/premium.css
           grep -q 'dashboard.js' central/index.html
+          grep -q 'quantity-normalization.js' central/index.html
           grep -q 'enhancements.js' central/index.html
           grep -q 'ui-icons.js' central/index.html
           grep -q 'rdo-board.js' central/index.html
