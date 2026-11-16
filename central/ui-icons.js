@@ -7,6 +7,7 @@
     photos:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
     food:'<path d="M4 3v7a3 3 0 0 0 6 0V3M7 3v18M20 21V3c-4 2-6 6-6 11h6"/>',
     report:'<path d="M7 3h7l5 5v13H5V3h2Z"/><path d="M14 3v6h5M8 13h8M8 17h8"/>',
+    rdos:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/><path d="m14 17 1.5 1.5 3-3"/>',
     external:'<path d="M13 5h6v6M19 5l-9 9"/><path d="M19 13v6H5V5h6"/>',
     right:'<path d="m9 18 6-6-6-6"/>',
     arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',
