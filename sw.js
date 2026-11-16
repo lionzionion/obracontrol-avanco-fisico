@@ -1,6 +1,6 @@
 /* RL Engenharia — cache apenas dos arquivos públicos da interface.
    Produção, medições, fotos e autenticação permanecem no Supabase. */
-const CACHE="rl-engenharia-obra-shell-v5";
+const CACHE="rl-engenharia-obra-shell-v6";
 const ASSETS=["./","./index.html","./itens.json","./manifest.webmanifest","./icon.svg","./rl-theme.css","./rl-brand.js","./bm-module.js","./bm-theme.css","./rdo-module.js","./rdo-theme.css","./assets/rl-logo.svg"];
 self.addEventListener("install",event=>{
  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
