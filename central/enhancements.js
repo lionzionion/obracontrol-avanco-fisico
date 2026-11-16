@@ -5,7 +5,7 @@
   const $ = id => document.getElementById(id);
   const esc = value => String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const nf=(v,d=2)=>Number(v||0).toLocaleString("pt-BR",{maximumFractionDigits:d,minimumFractionDigits:0});
-  const pct=v=>nf(v,1)+"%";
+  const pct=v=>nf(v,2)+"%";
   const dateBR=d=>d?new Date(d+"T12:00:00").toLocaleDateString("pt-BR"):"—";
   let snapshot=null;
   let selectedFocus=null;
