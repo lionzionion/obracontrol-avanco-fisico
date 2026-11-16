@@ -58,7 +58,8 @@
         <img src="../assets/rl-logo.svg" alt="RL Engenharia">
         <span>CENTRAL DE OBRAS <small>GESTÃO & INTELIGÊNCIA</small></span>
       </a>
-      <div class="sidebar-heading">GESTÃO DA OBRA</div>
+      <div class="sidebar-scroll" tabindex="0" role="region" aria-label="Navegação pelos módulos da Central">
+        <div class="sidebar-heading">GESTÃO DA OBRA</div>
       <nav id="sideNav" class="side-nav" aria-label="Módulos da Central">
         <button class="nav-btn active" data-screen="overview" type="button"><span>▦</span> Visão executiva</button>
         <button class="nav-btn" data-screen="production" type="button"><span>▤</span> Produção e medições</button>
@@ -68,13 +69,16 @@
         <button class="nav-btn" data-screen="report" type="button"><span>▣</span> Relatório gerencial</button>
         <button class="nav-btn" data-screen="access" type="button" id="directorNav"><span>♙</span> Acesso da Diretoria</button>
       </nav>
-      <div class="sidebar-heading links-heading">APLICATIVOS INTEGRADOS</div>
+      </div>
+      <div class="sidebar-integrations" aria-label="Aplicativos integrados da RL">
+        <div class="sidebar-heading links-heading">APLICATIVOS INTEGRADOS</div>
       <button type="button" class="app-button" data-app="obras" aria-label="Abrir ObraControl dentro da Central">
         <span class="app-left"><span data-app-icon="obras" aria-hidden="true"></span><span>ObraControl<small>Produção e medições</small></span></span><span data-icon="right" class="app-chevron"></span>
       </button>
       <button type="button" class="app-button" data-app="pedidos" aria-label="Abrir RL Pedidos dentro da Central">
         <span class="app-left"><span data-app-icon="pedidos" aria-hidden="true"></span><span>RL Pedidos<small>Refeições e colaboradores</small></span></span><span data-icon="right" class="app-chevron"></span>
       </button>
+      </div>
       <div class="sidebar-bottom"><div class="status-dot"></div><div><b>AMBEV • ITAPISSUMA</b><small>Fonte: Supabase compartilhado</small></div></div>
     </aside>
     <div class="shell">
