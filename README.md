@@ -38,7 +38,7 @@ https://lionzionion.github.io/obracontrol-avanco-fisico/
 
 O ObraControl utiliza o mesmo Supabase Auth do aplicativo de pedidos da equipe, sem modificar contas ou senhas existentes.
 
-- **Administrador ativo**: registra produção, aprova medições, altera metas e exclui lançamentos.
+- **Administrador ativo**: registra produção, aprova medições, **edita/corrige lançamentos de produção e medição**, altera metas e exclui lançamentos.
 - **Colaborador ativo**: consulta todos os itens, registra produção e adiciona fotografias.
 - **Restaurante / conta inativa / visitante sem login**: sem acesso ao banco do ObraControl.
 
@@ -58,6 +58,18 @@ Na tela de entrada, use seu **usuário de acesso** (ou e-mail) e sua **senha já
 
 **Produção executada** e **medição aprovada** são quantidades físicas separadas, nunca valores faturados.
 
+## Correção de lançamentos existentes
+
+Para corrigir um percentual lançado incorretamente (ex.: **59%**) sem apagar fotos nem o histórico:
+
+1. Acesse **Medições** e localize o card do serviço. Na seção **Lançamentos do serviço**, cada produção ou medição registrada tem o botão **✎ Editar** para administradores.
+2. Alternativamente, use **Dados → Histórico** ou **Serviços e fotos → Fotos / detalhes** para encontrar o mesmo lançamento.
+3. Clique em **Editar**, confira a quantidade original e altere a data, a quantidade (por exemplo, de 59 para 55 quando a unidade for %) ou os campos descritivos.
+4. Selecione **Salvar correção**. Os totais, percentuais e barras são recalculados a partir dos lançamentos na nuvem, e as fotografias existentes continuam vinculadas ao registro.
+5. O histórico indica **CORRIGIDO**; a data e o usuário da última correção são armazenados no banco.
+
+**Permissões e consistência:** somente administradores ativos podem alterar registros já existentes. Não é permitido alterar o serviço, o tipo (produção/medição) ou a autoria original. A correção de uma medição não pode superar a produção acumulada; a correção de produção não pode deixá-la abaixo do volume já medido. A operação é salva na nuvem, não apenas no dispositivo.
+
 ## Quantidades, percentuais e metas
 
 - Avanço executado (%) = quantidade executada acumulada ÷ meta física × 100;
@@ -70,8 +82,9 @@ O banco impede a aprovação de medições acima do volume executado. Quantidade
 
 ## Banco de dados e segurança
 
-A migração SQL versionada está em:
-`supabase/migrations/20261116113000_obracontrol_shared_cloud_tables_v1.sql`
+Migrações SQL versionadas:
+- `supabase/migrations/20261116113000_obracontrol_shared_cloud_tables_v1.sql` — tabelas originais;
+- `supabase/migrations/20261116205731_obracontrol_edit_entries_v2.sql` — correção segura e trilha de última edição.
 
 Estrutura:
 - `public.obc_items` — catálogo de serviços;
@@ -111,7 +124,8 @@ O frontend utiliza somente a **chave pública** do Supabase. Não há chave de s
 2. Entre como colaborador em outro celular e confirme que a produção aparece após atualização.
 3. Anexe uma foto e verifique a galeria no outro dispositivo.
 4. Confirme que a aprovação de medição só aparece para administradores.
-5. Exclua o registro de teste como administrador.
+5. Corrija a quantidade e confira o recálculo de progresso em outro dispositivo, sem perder as fotos.
+6. Exclua o registro de teste como administrador.
 
 Não utilize o sistema como referência oficial de execução antes de conferir as metas das planilhas com a versão contratual aprovada.
 
