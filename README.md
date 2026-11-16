@@ -1,6 +1,19 @@
-# ObraControl — acompanhamento físico compartilhado de obras
+# RL Engenharia | ObraControl — acompanhamento físico de obras
 
 Aplicativo web para **apontamento diário de serviços**, **volumes e percentuais**, **medições aprovadas** e **fotografias por item** da obra AMBEV Itapissuma. A interface **não exibe preços nem valores em reais**.
+
+
+## Identidade visual RL Engenharia
+
+Todas as telas usam a marca RL Engenharia, com o lema **Fazendo Acontecer** e a paleta azul/verde fornecida como referência.
+
+- Tela de entrada e autenticação com cabeçalho RL.
+- Menu desktop, cabeçalho responsivo no celular, painéis, formulários, histórico, medições e galeria fotográfica.
+- Diálogos de detalhes, configuração de metas e visualização de fotografias.
+- Ícone, manifesto instalável e cache estático com nome **RL Obras**.
+- Identidade visual separada da lógica de produção para facilitar manutenções futuras.
+
+**Arquivos visuais:** \`assets/rl-logo.svg\`, \`icon.svg\`, \`rl-theme.css\` e \`rl-brand.js\`. A marca SVG é uma versão vetorial baseada no layout, nas cores e no lema da referência visual enviada; o arquivo original de imagem fornecido não é armazenado neste repositório.
 
 ## Situação da implantação
 
@@ -84,6 +97,8 @@ O frontend utiliza somente a **chave pública** do Supabase. Não há chave de s
 | Arquivo | Finalidade |
 | --- | --- |
 | `index.html` | Aplicativo móvel e desktop, autenticação e sincronização |
+| `rl-theme.css` e `rl-brand.js` | Identidade RL em todas as telas |
+| `assets/rl-logo.svg` | Marca RL usada na interface |
 | `itens.json` | Catálogo inicial de 70 serviços, sem preços |
 | `supabase/migrations/*.sql` | Tabelas, validações, bucket de fotos e RLS |
 | `.github/workflows/pages.yml` | Verifica os arquivos e publica no GitHub Pages |
