@@ -83,16 +83,18 @@ A aba **RDOs e Relatórios** prepara um **Relatório Diário de Obra** a partir 
 5. Complete os dados que não existem nos apontamentos: **clima, turno, efetivo, equipamentos, segurança, ocorrências, observações e responsável técnico**. Informações desconhecidas ficam em branco, nunca são inferidas só por fotografia.
 6. Na galeria, **selecione quais fotos incluir, edite legendas e altere a ordem**; depois clique **Salvar rascunho**. Rascunhos ficam na nuvem.
 7. Clique **Gerar PDF de prévia** para baixar um A4 com a marca RL, datas, serviços, quantidades e imagens reais. A prévia possui identificação de rascunho.
-8. Após a conferência, informe o **engenheiro responsável** e clique **Finalizar e arquivar PDF**. O sistema salva um PDF privado no Supabase, baixa uma cópia e bloqueia edições no RDO finalizado.
-9. Use o **Histórico de RDOs** para abrir relatórios anteriores e baixar novamente o PDF arquivado.
+8. Informe o **engenheiro responsável**, clique **Salvar rascunho** e **Enviar para aprovação**. O status passa a **Aguardando aprovação** e o conteúdo é bloqueado para revisão.
+9. Um **administrador ativo** escolhe **Aprovar RDO** (observação opcional) ou **Devolver para ajuste** (justificativa obrigatória). O nome, cargo e horário são identificados pelo perfil autenticado e registrados no servidor.
+10. Quando aprovado, o sistema gera e arquiva um **PDF privado com a logomarca vetorial RL incorporada como imagem e o nome, cargo, data e hora do aprovador no rodapé de aprovação**. Se houver falha na geração após a decisão, permanece aprovado e oferece **Arquivar PDF aprovado** para concluir o arquivo.
+11. Use o **Histórico de RDOs** para consultar o status, visualizar quem aprovou e baixar o PDF arquivado.
 
-**Quem pode fazer o quê:** colaboradores ativos podem consultar RDOs; administradores ativos podem criar, corrigir rascunhos e finalizar. A numeração é automática e única. Há um RDO por data para toda a obra (gabiões e demolição na mesma data), sem duplicar dados.
+**Quem pode fazer o quê:** colaboradores ativos consultam RDOs. Administradores ativos podem criar rascunhos, enviá-los para análise, aprovar ou devolver com motivo. O RDO enviado é somente leitura até a decisão, e o **aprovado é imutável**. Um rascunho devolvido pode ser corrigido e reenviado. A numeração é automática; há um RDO por data para toda a obra (gabiões e demolição). A aprovação é **manual**, não agendada automaticamente ao fim do dia.
 
 **Fonte das fotos:** obc_photos, associada a obc_entries pela chave do apontamento. A data considerada é a work_date desse apontamento, **não** a data de upload nem a data EXIF. Fotos anexadas a medições da mesma data aparecem como evidência, mas **não adicionam quantitativos de produção**.
 
-**PDF e segurança:** os relatórios finalizados ficam no bucket privado obc-rdo-pdfs; são baixados por usuários autenticados, com políticas RLS e Storage. O documento não representa assinatura eletrônica, fiscalização ou aprovação automática. Não existe upload público de PDFs. A geração de prévias usa a biblioteca jsPDF carregada em HTTPS; é necessária conexão de internet. O PDF final exige que todas as imagens selecionadas estejam acessíveis.
+**PDF e segurança:** a logomarca existente em `assets/rl-logo.svg` é convertida em PNG para ser incorporada em cada página do PDF. O documento registra o **aprovador identificado via perfil Supabase**, a função e o carimbo de hora do servidor (exibição no fuso de Recife), além de observações. Relatórios aprovados ficam no bucket privado `obc-rdo-pdfs` e podem ser baixados por usuários ativos autorizados. Trata-se de aprovação **interna**, não assinatura digital nem aceite formal da Solutio. A biblioteca jsPDF é carregada por HTTPS; o PDF aprovado precisa de conexão e de todas as imagens selecionadas acessíveis.
 
-**Banco:** public.obc_rdos possui data, numeração sequencial, status, snapshot das atividades, manifest de fotografias, observações, autores, caminho do PDF final e trilha de alterações. Migração: supabase/migrations/20261116222538_obracontrol_daily_reports_rdo_v1.sql.
+**Banco:** `public.obc_rdos` mantém data, número, atividades, fotografias, identidade e carimbo do aprovador, justificativa de devolução e trilha de decisões imutável. Migrações: `supabase/migrations/20261116222538_obracontrol_daily_reports_rdo_v1.sql` e `supabase/migrations/20261116224909_obracontrol_rdo_approval_workflow_v2.sql`.
 
 ---
 
