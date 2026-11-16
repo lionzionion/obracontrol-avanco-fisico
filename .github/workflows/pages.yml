@@ -75,6 +75,22 @@ jobs:
           cp -r central dist/central
           touch dist/.nojekyll
 
+      - name: Preparar Python para imagem social
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Gerar prévia de compartilhamento com a marca RL
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check Pillow==11.3.0
+          curl --fail --location --silent --show-error --retry 3 \
+            https://raw.githubusercontent.com/lionzionion/pedidos-almoco-Rlconstrucoes/main/assets/rl-logo.webp \
+            --output /tmp/rl-logo-oficial.webp
+          python central/build-social-image.py /tmp/rl-logo-oficial.webp dist/central/preview-rl.jpg
+          test -s dist/central/preview-rl.jpg
+          grep -q 'og:image' dist/central/index.html
+
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
         with:
