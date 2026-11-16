@@ -70,6 +70,32 @@ Para corrigir um percentual lançado incorretamente (ex.: **59%**) sem apagar fo
 
 **Permissões e consistência:** somente administradores ativos podem alterar registros já existentes. Não é permitido alterar o serviço, o tipo (produção/medição) ou a autoria original. A correção de uma medição não pode superar a produção acumulada; a correção de produção não pode deixá-la abaixo do volume já medido. A operação é salva na nuvem, não apenas no dispositivo.
 
+## RDOs e Relatórios — Diário de Obra com fotos reais
+
+A aba **RDOs e Relatórios** prepara um **Relatório Diário de Obra** a partir dos registros do dia no mesmo ObraControl. Preserva todas as informações já registradas, não altera BMs, nem usa ferramentas de IA para inventar dados de engenharia.
+
+### Como usar
+
+1. Faça login e abra **RDOs e Relatórios** no menu (desktop ou celular).
+2. Selecione a **data de referência** e clique **Abrir dia**.
+3. O RDO carrega os **lançamentos de produção daquela data**, somando quantidades do mesmo item e frente; também carrega fotos vinculadas a **qualquer apontamento da data**, mesmo que o upload tenha ocorrido em dia posterior.
+4. Revise as **descrições técnicas de cada serviço**. Quantidades são lidas dos lançamentos existentes; para corrigir números, use o fluxo de **Editar lançamento** do ObraControl e clique **Atualizar registros do dia** no RDO.
+5. Complete os dados que não existem nos apontamentos: **clima, turno, efetivo, equipamentos, segurança, ocorrências, observações e responsável técnico**. Informações desconhecidas ficam em branco, nunca são inferidas só por fotografia.
+6. Na galeria, **selecione quais fotos incluir, edite legendas e altere a ordem**; depois clique **Salvar rascunho**. Rascunhos ficam na nuvem.
+7. Clique **Gerar PDF de prévia** para baixar um A4 com a marca RL, datas, serviços, quantidades e imagens reais. A prévia possui identificação de rascunho.
+8. Após a conferência, informe o **engenheiro responsável** e clique **Finalizar e arquivar PDF**. O sistema salva um PDF privado no Supabase, baixa uma cópia e bloqueia edições no RDO finalizado.
+9. Use o **Histórico de RDOs** para abrir relatórios anteriores e baixar novamente o PDF arquivado.
+
+**Quem pode fazer o quê:** colaboradores ativos podem consultar RDOs; administradores ativos podem criar, corrigir rascunhos e finalizar. A numeração é automática e única. Há um RDO por data para toda a obra (gabiões e demolição na mesma data), sem duplicar dados.
+
+**Fonte das fotos:** obc_photos, associada a obc_entries pela chave do apontamento. A data considerada é a work_date desse apontamento, **não** a data de upload nem a data EXIF. Fotos anexadas a medições da mesma data aparecem como evidência, mas **não adicionam quantitativos de produção**.
+
+**PDF e segurança:** os relatórios finalizados ficam no bucket privado obc-rdo-pdfs; são baixados por usuários autenticados, com políticas RLS e Storage. O documento não representa assinatura eletrônica, fiscalização ou aprovação automática. Não existe upload público de PDFs. A geração de prévias usa a biblioteca jsPDF carregada em HTTPS; é necessária conexão de internet. O PDF final exige que todas as imagens selecionadas estejam acessíveis.
+
+**Banco:** public.obc_rdos possui data, numeração sequencial, status, snapshot das atividades, manifest de fotografias, observações, autores, caminho do PDF final e trilha de alterações. Migração: supabase/migrations/20261116222538_obracontrol_daily_reports_rdo_v1.sql.
+
+---
+
 ## Controle de BMs (integração com a Solutio)
 
 O módulo **BMs**, restrito a administradores, mantém as medições oficiais em um livro separado dos apontamentos diários (sem duplicar serviços). A importação inicial dos quatro PDFs inclui **32 linhas com medições positivas**; as demais continuam representadas como zero. **Os PDFs anexados nesta conversa ainda precisam ser enviados pelo botão Anexar PDF no aplicativo**, para ficarem no bucket privado. Nenhuma planilha de custos ou PDF foi colocado no repositório público.
@@ -133,6 +159,7 @@ O frontend utiliza somente a **chave pública** do Supabase. Não há chave de s
 | `index.html` | Aplicativo móvel e desktop, autenticação e sincronização |
 | `rl-theme.css` e `rl-brand.js` | Identidade RL em todas as telas |
 | `bm-module.js` e `bm-theme.css` | Controle de BMs, PDFs privados, recálculo por item e aprovação |
+| `rdo-module.js` e `rdo-theme.css` | RDOs, revisão diária e exportação/arquivo de PDFs com fotos |
 | `assets/rl-logo.svg` | Marca RL usada na interface |
 | `itens.json` | Catálogo inicial de 70 serviços, sem preços |
 | `supabase/migrations/*.sql` | Tabelas, validações, bucket de fotos e RLS |
