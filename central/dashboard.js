@@ -10,7 +10,7 @@
   const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const numeric = (value, decimals=2) => Number(value||0).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:decimals});
   const money = value => Number(value||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-  const pct = value => numeric(value,1)+"%";
+  const pct = value => numeric(value,2)+"%";
   const safeNumber = value => Number.isFinite(Number(value)) ? Number(value) : 0;
   const dayLabel = value => value ? new Date(value+"T12:00:00").toLocaleDateString("pt-BR") : "—";
   const empty = message => '<p class="empty">'+escapeHTML(message)+'</p>';
@@ -135,7 +135,15 @@
         archived:false,count:Number(g.count)||0,price:Number(g.total)||0
       })):rawOrders;
       const staffSummary=viewer?(summary.staff||[]):[];
-      Object.assign(state,{items,entries,configs,photos,orders,profiles,staffSummary,rdos:rdoResult.rows,rdoError:rdoResult.error,ready:true});
+      if(!window.RL_QUANTITY)throw new Error("O módulo de conversão de verbas não foi carregado.");
+      const itemById=new Map(items.map(item=>[item.id,item]));
+      const configById=new Map(configs.map(config=>[config.item_id,config]));
+      // Exibição somente: o ObraControl registra os itens VB em porcentagem de 0 a 100.
+      const normalizedEntries=entries.map(entry=>{
+        const item=itemById.get(entry.item_id),config=configById.get(entry.item_id);
+        return {...entry,qty:window.RL_QUANTITY.quantity(item,config,entry.qty)};
+      });
+      Object.assign(state,{items,entries:normalizedEntries,configs,photos,orders,profiles,staffSummary,rdos:rdoResult.rows,rdoError:rdoResult.error,ready:true});
       state.signedPhotos.clear();
       renderEverything();
       $("syncedAt").textContent="Sincronizado em "+new Date().toLocaleString("pt-BR",{timeZone:"America/Recife"});
@@ -183,11 +191,22 @@
     return itemsInScope().map(i=>{
       const c=cfg.get(i.id);
       const record=sums.get(i.id)||{production:0,measurement:0};
-      const planned=safeNumber(c?.planned??i.planned);
+      const goal=window.RL_QUANTITY.goal(i,c);
+      const planned=goal.planned;
       const executed=record.production;
-      return {...i,planned,unit:c?.unit||i.unit,executed,measured:record.measurement,
+      return {...i,planned,unit:goal.unit,executed,measured:record.measurement,
         during:during.get(i.id)||0,percent:planned>0?executed/planned*100:0};
     }).sort((a,b)=>b.executed-a.executed||a.code.localeCompare(b.code,"pt-BR"));
+  }
+  // Para um item VB controlado em percentual, 38 unidades brutas viram 0,38 VB.
+  // Mantém a precisão do apontamento (ex.: 0,01% = 0,0001 VB).
+  function itemDisplayUnit(item) {
+    if(!item)return "";
+    const config=state.configs.find(c=>c.item_id===item.id);
+    return window.RL_QUANTITY.goal(item,config).unit;
+  }
+  function formatExecuted(qty,unit) {
+    return numeric(qty,String(unit||"").toLowerCase()==="vb"?4:2);
   }
   function progressBar(value,cyan=false) {
     const width=Math.max(0,Math.min(100,safeNumber(value)));
@@ -224,7 +243,7 @@
       .sort((a,b)=>b.work_date.localeCompare(a.work_date)||b.created_at.localeCompare(a.created_at)).slice(0,6);
     $("recentEntries").innerHTML=recents.length?recents.map(e=>{
       const i=map.get(e.item_id);
-      return '<div class="recent"><div class="recent-icon">▤</div><div class="recent-main"><b>'+escapeHTML((i?.code||"Item")+" · "+numeric(e.qty)+" "+(i?.unit||""))+'</b><small>'+escapeHTML(dayLabel(e.work_date)+" • "+(e.front||"Frente não informada")+" • "+(e.author||"Responsável não informado"))+'</small></div></div>';
+      return '<div class="recent"><div class="recent-icon">▤</div><div class="recent-main"><b>'+escapeHTML((i?.code||"Item")+" · "+formatExecuted(e.qty,itemDisplayUnit(i))+" "+itemDisplayUnit(i))+'</b><small>'+escapeHTML(dayLabel(e.work_date)+" • "+(e.front||"Frente não informada")+" • "+(e.author||"Responsável não informado"))+'</small></div></div>';
     }).join(""):empty("Sem produção lançada neste período.");
   }
   function renderChart(entries) {
@@ -270,7 +289,7 @@
     const sorted=entries.slice().sort((a,b)=>b.work_date.localeCompare(a.work_date)||b.created_at.localeCompare(a.created_at));
     $("dailyRows").innerHTML=sorted.length?sorted.slice(0,150).map(e=>{
       const i=map.get(e.item_id);
-      return '<tr><td>'+escapeHTML(dayLabel(e.work_date))+'</td><td>'+escapeHTML((i?.code||"")+' · '+(i?.description||"Item removido")).slice(0,135)+'</td><td class="numeric">'+numeric(e.qty)+' '+escapeHTML(i?.unit||"")+'</td><td>'+escapeHTML(e.front||"—")+'</td><td>'+escapeHTML(e.author||"—")+'</td><td>'+escapeHTML(e.kind==="measurement"?"Medição":"Produção")+'</td></tr>';
+      return '<tr><td>'+escapeHTML(dayLabel(e.work_date))+'</td><td>'+escapeHTML((i?.code||"")+' · '+(i?.description||"Item removido")).slice(0,135)+'</td><td class="numeric">'+formatExecuted(e.qty,itemDisplayUnit(i))+' '+escapeHTML(itemDisplayUnit(i))+'</td><td>'+escapeHTML(e.front||"—")+'</td><td>'+escapeHTML(e.author||"—")+'</td><td>'+escapeHTML(e.kind==="measurement"?"Medição":"Produção")+'</td></tr>';
     }).join(""):'<tr><td colspan="6">'+empty("Sem lançamentos neste período.")+'</td></tr>';
   }
   async function ensureSignedPhotos() {
@@ -336,7 +355,7 @@
       '<h3>2. Últimos registros de execução</h3>'+
       (recent.length?'<table><thead><tr><th>Data</th><th>Serviço</th><th class="numeric">Quantidade</th></tr></thead><tbody>'+recent.map(e=>{
         const item=map.get(e.item_id);
-        return '<tr><td>'+escapeHTML(dayLabel(e.work_date))+'</td><td>'+escapeHTML((item?.code||"")+" · "+(e.front||item?.description||""))+'</td><td class="numeric">'+numeric(e.qty)+' '+escapeHTML(item?.unit||"")+'</td></tr>';
+        return '<tr><td>'+escapeHTML(dayLabel(e.work_date))+'</td><td>'+escapeHTML((item?.code||"")+" · "+(e.front||item?.description||""))+'</td><td class="numeric">'+formatExecuted(e.qty,itemDisplayUnit(item))+' '+escapeHTML(itemDisplayUnit(item))+'</td></tr>';
       }).join("")+'</tbody></table>':empty("Sem apontamentos."))+
       '<h3>3. Registro fotográfico (até 6 imagens)</h3>'+(photoHtml?'<div class="report-pics">'+photoHtml+'</div>':empty("Nenhuma fotografia acessível neste período."))+
       '<h3>4. Alimentação e apoio administrativo</h3><p>'+numeric(orderCount(orders))+' refeições válidas, subtotal de '+money(mealCost)+' (sem fretes). Cadastro: '+numeric(staffCount())+' colaboradores ativos; este total não confirma presença em obra.</p>'+
