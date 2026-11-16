@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "ObraControl — Avanço Físico",
+  "short_name": "ObraControl",
+  "description": "Apontamentos de produção diária, medições e fotos por serviço.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a1020",
+  "theme_color": "#0a1020",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
