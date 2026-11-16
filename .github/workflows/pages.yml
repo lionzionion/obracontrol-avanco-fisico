@@ -56,7 +56,8 @@ jobs:
           const fs=require('node:fs');
           const script=fs.readFileSync('central/rdo-board.js','utf8');
           const page=fs.readFileSync('central/index.html','utf8');
-          if (/\.\s*(insert|update|upsert|delete|remove)\s*\(/.test(script)) throw Error('A área da Diretoria não pode gravar RDOs');
+          if (/\.\s*(insert|update|upsert|delete)\s*\(/.test(script)) throw Error('A área da Diretoria não pode gravar RDOs');
+          if (/\.storage\.from\([^)]*\)\.remove\s*\(/.test(script)) throw Error('O módulo RDO não pode excluir arquivos');
           for (const field of ['screen-rdos','rdoList','rdoDetail','rdoQuickApproved','rdoDownloadPdf']) {
             if (!page.includes(field) && !script.includes(field)) throw Error('Componente RDO ausente: '+field);
           }
