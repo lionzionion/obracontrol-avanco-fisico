@@ -323,7 +323,7 @@ const mod={
    if(this.jsPdfLoading)return this.jsPdfLoading;
    this.jsPdfLoading=new Promise((resolve,reject)=>{
      const script=document.createElement('script');
-     script.src='https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
+     script.src='https://unpkg.com/jspdf@4.2.1/dist/jspdf.umd.min.js';
      script.onload=()=>window.jspdf?.jsPDF?resolve(window.jspdf.jsPDF):reject(Error('Biblioteca de PDF não carregada.'));
      script.onerror=()=>reject(Error('Falha de internet ao carregar o gerador PDF.'));document.head.appendChild(script);
    }).catch(err=>{this.jsPdfLoading=null;throw err});
