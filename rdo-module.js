@@ -11,6 +11,9 @@ const nf=(v,d=2)=>num(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximum
 const dateBR=s=>s?new Date(s+'T12:00:00').toLocaleDateString('pt-BR'):'—';
 const localToday=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const seq=r=>'RDO-'+String(r?.rdo_no||'NOVO').padStart(5,'0');
+const lockedStatus=s=>['submitted','approved','final'].includes(s);
+const statusLabels={draft:'Rascunho',submitted:'Aguardando aprovação',returned:'Devolvido para ajuste',approved:'Aprovado',final:'Finalizado (legado)'};
+const whenBR=s=>s?new Date(s).toLocaleString('pt-BR',{timeZone:'America/Recife',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}):'—';
 const fields=['weather','shift_description','workforce','equipment','safety_notes','occurrences','general_notes','engineer_name','reviewer_name'];
 const draftDefaults=date=>({
  work_date:date,status:'draft',weather:'',shift_description:'',workforce:'',equipment:'',
@@ -76,7 +79,7 @@ const mod={
    if(this.current){const updated=this.rows.find(x=>x.id===this.current.id);if(updated&&!this.dirty)this.current=updated}
  },
  captureInput(target){
-   if(!this.draft||this.current?.status==='final')return;
+   if(!this.draft||lockedStatus(this.current?.status))return;
    if(target.id==='rdoDate')return;
    if(target.dataset.rdoField){
      const k=target.dataset.rdoField;
@@ -112,7 +115,10 @@ const mod={
      case 'save':await this.saveDraft();break;
      case 'pdf':await this.downloadPdf();break;
      case 'history-pdf':await this.downloadFromHistory(id);break;
-     case 'finalize':await this.finalize();break;
+     case 'submit':await this.submitForApproval();break;
+     case 'approve':await this.review('approved');break;
+     case 'return':await this.review('returned');break;
+     case 'archive':await this.archiveApprovedPdf();break;
      default:break;
    }
  },
@@ -131,7 +137,7 @@ const mod={
    this.render(true);
  },
  synchronize(){
-   if(!this.admin||!this.draft||this.current?.status==='final')return;
+   if(!this.admin||!this.draft||lockedStatus(this.current?.status))return;
    if(!confirm('Atualizar os serviços e as fotos conforme os lançamentos atuais? As descrições e legendas já editadas serão mantidas.'))return;
    const fresh=buildDailySnapshot(this.bridge,this.draft.work_date);
    const oldActivities=new Map(this.draft.activities.map(a=>[a.key,a]));
@@ -149,7 +155,7 @@ const mod={
    this.render(true);this.notice('Serviços, fotos e quantitativos do dia atualizados.');
  },
  reorder(id,step){
-   if(!this.admin||!this.draft||this.current?.status==='final')return;
+   if(!this.admin||!this.draft||lockedStatus(this.current?.status))return;
    const p=this.draft.photo_manifest,at=p.findIndex(x=>x.photo_id===id),to=at+step;
    if(at<0||to<0||to>=p.length)return;
    [p[at],p[to]]=[p[to],p[at]];
@@ -160,13 +166,14 @@ const mod={
    const root=$('rdoApp');if(!root)return;
    if(!force&&((root.contains(document.activeElement)&&document.activeElement!==document.body) || this.dirty))return;
    if(!this.state?.user){root.innerHTML='<div class="empty">Faça login para acessar os RDOs.</div>';return}
-   const isAdmin=this.admin,readonly=!isAdmin||this.current?.status==='final';
-   const draftCount=this.rows.filter(x=>x.status==='draft').length;
-   const finalCount=this.rows.filter(x=>x.status==='final').length;
+   const isAdmin=this.admin,readonly=!isAdmin||lockedStatus(this.current?.status);
+   const state=this.current?.status||'draft',approved=state==='approved',submitted=state==='submitted',returned=state==='returned';
+   const waitingCount=this.rows.filter(x=>x.status==='submitted').length;
+   const approvedCount=this.rows.filter(x=>['approved','final'].includes(x.status)).length;
    const records=this.bridge.state.entries.filter(e=>e.date===this.date);
    const photoCount=(this.bridge.state.photos||[]).filter(p=>records.some(e=>e.id===p.entryId)).length;
    const dateInput='<input id="rdoDate" class="input" type="date" value="'+esc(this.date)+'">';
-   const top='<div class="rdo-stats"><div><small>RDOs finalizados</small><strong>'+finalCount+'</strong></div><div><small>Rascunhos</small><strong>'+draftCount+'</strong></div><div><small>Fotos na data</small><strong>'+photoCount+'</strong></div></div>'+
+   const top='<div class="rdo-stats"><div><small>RDOs aprovados</small><strong>'+approvedCount+'</strong></div><div><small>Aguardando análise</small><strong>'+waitingCount+'</strong></div><div><small>Fotos na data</small><strong>'+photoCount+'</strong></div></div>'+
     '<div class="rdo-picker"><label>Data de referência do RDO '+dateInput+'</label><button type="button" class="btn primary" data-rdo-action="load">Abrir dia</button></div>'+
     '<div class="note">Os serviços e volumes vêm dos lançamentos de <strong>produção</strong> do dia. As fotos são reunidas pela <strong>data de execução do apontamento ao qual estão vinculadas</strong>, mesmo se enviadas posteriormente. Equipe, clima e equipamentos exigem conferência manual.</div>';
    if(!this.draft)this.loadDate(this.date);
@@ -225,11 +232,11 @@ const mod={
     '<div class="panel rdo-history"><h2>Histórico de RDOs</h2>'+history+'</div>';
  },
  async saveDraft({silent=false}={}){
-   if(!this.admin||this.current?.status==='final')return false;
+   if(!this.admin||lockedStatus(this.current?.status))return false;
    if(!this.draft||this.busy)return false;
    this.busy=true;
    try{
-     const data=this.payload('draft');
+     const data=this.payload(this.current?.status==='returned'?'returned':'draft');
      let response;
      if(this.current?.id){
        response=await this.cloud.from('obc_rdos').update(data)
