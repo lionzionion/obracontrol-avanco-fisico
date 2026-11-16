@@ -50,12 +50,27 @@ jobs:
           node --check central/dashboard.js
           node --check central/enhancements.js
           node --check central/ui-icons.js
+          node --check central/rdo-board.js
+          test -s central/rdo-board.css
+          node <<'NODE'
+          const fs=require('node:fs');
+          const script=fs.readFileSync('central/rdo-board.js','utf8');
+          const page=fs.readFileSync('central/index.html','utf8');
+          if (/\.\s*(insert|update|upsert|delete|remove)\s*\(/.test(script)) throw Error('A área da Diretoria não pode gravar RDOs');
+          for (const field of ['screen-rdos','rdoList','rdoDetail','rdoQuickApproved','rdoDownloadPdf']) {
+            if (!page.includes(field) && !script.includes(field)) throw Error('Componente RDO ausente: '+field);
+          }
+          if (!script.includes('obc-rdo-pdfs') || !script.includes('obc-fotos')) throw Error('Armazenamento do RDO não configurado');
+          console.log('Verificado: módulo RDO somente leitura, com PDF privado e galeria protegida');
+          NODE
           test -s central/index.html
           test -s central/dashboard.css
           test -s central/premium.css
           grep -q 'dashboard.js' central/index.html
           grep -q 'enhancements.js' central/index.html
           grep -q 'ui-icons.js' central/index.html
+          grep -q 'rdo-board.js' central/index.html
+          grep -q 'rdo-board.css' central/index.html
           grep -q 'premium.css' central/index.html
           grep -q 'id="focusServiceSelect"' central/index.html
           grep -q 'id="dailyServiceSelect"' central/index.html
