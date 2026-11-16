@@ -148,6 +148,13 @@
     pedidos:{url:new URL("../../pedidos-almoco-Rlconstrucoes/app/",location.href).href,title:"RL Pedidos",description:"Gestão de refeições, restaurante e colaboradores"}
   };
   function openApp(key){
+    // Diretoria consulta os mesmos dados dentro da Central, sem abrir ferramentas
+    // operacionais que permitiriam lançamentos ou alterações.
+    if(document.body.classList.contains("viewer")){
+      const section=key==="obras"?"production":"food";
+      document.querySelector('.nav-btn[data-screen="'+section+'"]')?.click();
+      return;
+    }
     const entry=apps[key];
     if(!entry||$("application").hidden)return;
     if(new URL(entry.url).origin!==location.origin)return;
