@@ -147,3 +147,125 @@ body{background:radial-gradient(circle at 72% -12%,rgba(40,102,123,.11),transpar
 .password-actions button{flex:1}
 @media(max-width:940px){.top-actions #passwordSettingsButton{font-size:.7rem;padding:7px}}
 @media print{.password-dialog{display:none!important}}
+
+/* Sidebar v3 — menu rolável sem ocultar os aplicativos integrados.
+   A barra externa não recebe overflow-y:auto: apenas a lista de módulos rola,
+   mantendo ObraControl e RL Pedidos permanentemente acessíveis. */
+@media(min-width:941px){
+  .app .sidebar{
+    position:sticky;
+    top:0;
+    height:100vh;
+    height:100dvh;
+    min-height:0;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    padding:20px 15px 13px;
+    gap:0;
+  }
+  .sidebar .brand{flex:0 0 auto;min-height:66px;margin:0 0 7px;padding:0 5px 12px}
+  .sidebar .sidebar-scroll{
+    flex:1 1 auto;
+    min-height:0;
+    max-height:100%;
+    overflow-y:auto;
+    overflow-x:hidden;
+    overscroll-behavior:contain;
+    scrollbar-width:thin;
+    scrollbar-color:#507284 transparent;
+    padding:0 4px 8px 0;
+  }
+  .sidebar .sidebar-scroll::-webkit-scrollbar{width:6px}
+  .sidebar .sidebar-scroll::-webkit-scrollbar-thumb{background:#507284;border-radius:8px}
+  .sidebar .sidebar-scroll::-webkit-scrollbar-track{background:transparent}
+  .sidebar .sidebar-scroll .sidebar-heading{margin:12px 9px 8px}
+  .sidebar .sidebar-scroll .side-nav{gap:4px}
+  .sidebar .sidebar-scroll .nav-btn{padding:10px 11px;min-height:43px}
+  .sidebar .sidebar-integrations{
+    flex:0 0 auto;
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+    padding:12px 0 0;
+    border-top:1px solid #28475a;
+    background:transparent;
+  }
+  .sidebar .sidebar-integrations .links-heading{
+    display:block;
+    margin:0 9px 5px;
+    color:#91adba;
+  }
+  .sidebar .sidebar-integrations .app-button{
+    display:flex;
+    width:100%;
+    min-height:53px;
+    margin:0;
+    padding:9px 11px;
+    flex:0 0 auto;
+  }
+  .sidebar .sidebar-integrations .app-button small{
+    display:block;
+    white-space:normal;
+  }
+  .sidebar .sidebar-bottom{
+    flex:0 0 auto;
+    margin-top:8px;
+    padding:10px 9px;
+    min-height:56px;
+  }
+}
+@media(min-width:941px) and (max-height:750px){
+  .app .sidebar{padding-top:12px;padding-bottom:9px}
+  .sidebar .brand{min-height:53px;margin-bottom:4px;padding-bottom:8px}
+  .sidebar .sidebar-integrations{padding-top:8px;gap:6px}
+  .sidebar .sidebar-integrations .app-button{min-height:47px;padding:7px 10px}
+  .sidebar .sidebar-bottom{display:none}
+  .sidebar .sidebar-scroll .sidebar-heading{margin-top:8px}
+}
+@media(max-width:940px){
+  .app .sidebar{position:relative;height:auto;min-height:0;overflow:visible;gap:0;padding:12px 14px}
+  .sidebar .brand{flex:none;margin:0;padding:0 8px 9px}
+  .sidebar .sidebar-scroll{display:block;flex:none;min-height:0;width:100%;overflow:visible;padding:0}
+  .sidebar .sidebar-scroll>.sidebar-heading{display:none}
+  .sidebar .sidebar-scroll .side-nav{
+    display:flex;
+    flex-direction:row;
+    overflow-x:auto;
+    overflow-y:hidden;
+    overscroll-behavior-x:contain;
+    scrollbar-width:thin;
+    padding:3px 0 7px;
+    gap:5px;
+  }
+  .sidebar .sidebar-integrations{
+    display:flex;
+    flex-direction:row;
+    flex-wrap:wrap;
+    gap:8px;
+    border-top:1px solid #29475a;
+    padding-top:9px;
+    margin-top:4px;
+  }
+  .sidebar .sidebar-integrations .links-heading{
+    display:block;
+    flex:0 0 100%;
+    margin:0 5px 1px;
+    font-size:10px;
+  }
+  .sidebar .sidebar-integrations .app-button{
+    display:flex;
+    flex:1 1 170px;
+    min-height:43px;
+    min-width:0;
+    width:auto;
+    margin:0;
+    padding:7px 11px;
+  }
+  .sidebar .sidebar-integrations .app-button + .app-button{margin-top:0}
+  .sidebar .sidebar-bottom{display:none}
+}
+@media(max-width:510px){
+  .sidebar .sidebar-integrations .app-button{flex-basis:100%}
+}
+@media print{.sidebar-scroll,.sidebar-integrations{display:none!important}}
