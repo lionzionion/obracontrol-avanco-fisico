@@ -29,7 +29,8 @@
   <link rel="stylesheet" href="./rdo-board.css?v=1">
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
   <script defer src="./rdo-board.js?v=1"></script>
-  <script defer src="./dashboard.js?v=2"></script>
+  <script defer src="./quantity-normalization.js?v=1"></script>
+  <script defer src="./dashboard.js?v=3"></script>
   <script defer src="./enhancements.js?v=2"></script>
   <script defer src="./ui-icons.js?v=2"></script>
 </head>
@@ -125,7 +126,7 @@
               <span><i class="legend-swatch pending"></i> Executado ainda não medido</span>
               <span><i class="legend-swatch remaining"></i> Saldo da meta</span>
             </div>
-            <p class="section-explainer">A barra mostra a proporção em relação à <strong>meta física do serviço</strong>. “Executado” não significa “medido”. Sem lançamento de medição aprovada, a parcela medida permanecerá zerada.</p>
+            <p class="section-explainer">A barra mostra a proporção em relação à <strong>meta física do serviço</strong>. “Executado” não significa “medido”. Para itens por verba (VB), o apontamento percentual é exibido como fração da meta contratual: <strong>38% = 0,38 de 1,00 VB</strong>. Sem medição aprovada, a parcela medida permanece zerada.</p>
           </article>
           <article class="panel daily-production">
             <div class="panel-head daily-title"><div><h2>Quanto foi produzido por dia</h2><p>Escolha um serviço para visualizar as quantidades diárias na unidade correta</p></div><select id="dailyServiceSelect" aria-label="Selecionar serviço para evolução diária"><option value="">Selecione um serviço</option></select></div>
