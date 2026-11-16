@@ -45,6 +45,11 @@ jobs:
           NODE
           node --check /tmp/obracontrol.js
           node --check rl-brand.js
+          node --check central/dashboard.js
+          test -s central/index.html
+          test -s central/dashboard.css
+          grep -q 'dashboard.js' central/index.html
+          grep -q 'dashboard.css' central/index.html
           test -s assets/rl-logo.svg
           test -s rl-theme.css
           grep -q 'rl-theme.css' index.html
@@ -52,6 +57,7 @@ jobs:
           mkdir -p dist/assets
           cp index.html itens.json manifest.webmanifest icon.svg sw.js rl-theme.css rl-brand.js dist/
           cp assets/rl-logo.svg dist/assets/
+          cp -r central dist/central
           touch dist/.nojekyll
 
       - name: Configurar GitHub Pages
