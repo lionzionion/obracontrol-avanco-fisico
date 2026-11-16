@@ -19,7 +19,7 @@
   });
   const state = {
     profile:null,screen:"overview",start:"",end:"",contract:"all",
-    items:[],entries:[],configs:[],photos:[],orders:[],profiles:[],
+    items:[],entries:[],configs:[],photos:[],orders:[],profiles:[],rdos:[],rdoError:"",
     signedPhotos:new Map(),loading:false,ready:false,staffSummary:[],directorCredentials:null
   };
 
@@ -48,6 +48,7 @@
     setLoginMessage(message);
     state.profile=null;
     state.ready=false;
+    window.RL_RDO_BOARD?.reset?.();
     state.directorCredentials=null;
     if($("directorResult"))$("directorResult").hidden=true;
     if($("passwordSettingsButton"))$("passwordSettingsButton").hidden=true;
@@ -95,7 +96,8 @@
   }
   async function signOut() {
     try {await client.auth.signOut();}catch(e){console.warn("Saída:",e);}
-    state.items=[];state.entries=[];state.orders=[];state.photos=[];state.profiles=[];state.signedPhotos.clear();
+    state.items=[];state.entries=[];state.orders=[];state.photos=[];state.profiles=[];state.rdos=[];state.rdoError="";state.signedPhotos.clear();
+    window.RL_RDO_BOARD?.reset?.();
     showLogin("Sessão encerrada.");
   }
   async function fetchAll(table,columns,sort) {
@@ -116,13 +118,15 @@
     setNotice("Sincronizando os dados da nuvem…");
     try {
       const viewer=state.profile.role==="diretoria";
-      const [items,entries,configs,photos,rawOrders,profiles]=await Promise.all([
+      const [items,entries,configs,photos,rawOrders,profiles,rdoResult]=await Promise.all([
         fetchAll("obc_items","id,contract,code,description,unit,planned,group_code","created_at"),
         fetchAll("obc_entries","id,item_id,kind,work_date,qty,front,author,note,created_at","created_at"),
         fetchAll("obc_configs","item_id,unit,planned,updated_at","updated_at"),
         fetchAll("obc_photos","id,entry_id,item_id,path,name,created_at","created_at"),
         viewer?client.rpc("rl_central_summary"):fetchAll("orders","id,order_day,meal,status,archived,price,company","order_day"),
-        viewer?Promise.resolve([]):fetchAll("profiles","id,username,display_name,role,active,company","created_at")
+        viewer?Promise.resolve([]):fetchAll("profiles","id,username,display_name,role,active,company","created_at"),
+        fetchAll("obc_rdos","id,rdo_no,work_date,status,engineer_name,reviewer_name,approved_name,approved_at,submitted_at,pdf_path,updated_at","work_date")
+          .then(rows=>({rows,error:""})).catch(error=>({rows:[],error:String(error.message||error)}))
       ]);
       if(viewer&&rawOrders.error)throw rawOrders.error;
       const summary=viewer?(rawOrders.data||{}):null;
@@ -131,7 +135,7 @@
         archived:false,count:Number(g.count)||0,price:Number(g.total)||0
       })):rawOrders;
       const staffSummary=viewer?(summary.staff||[]):[];
-      Object.assign(state,{items,entries,configs,photos,orders,profiles,staffSummary,ready:true});
+      Object.assign(state,{items,entries,configs,photos,orders,profiles,staffSummary,rdos:rdoResult.rows,rdoError:rdoResult.error,ready:true});
       state.signedPhotos.clear();
       renderEverything();
       $("syncedAt").textContent="Sincronizado em "+new Date().toLocaleString("pt-BR",{timeZone:"America/Recife"});
@@ -347,6 +351,7 @@
     renderPhotos(photos);
     renderFood(orders);
     renderReport(rows,entries,photos,orders);
+    window.RL_RDO_BOARD?.setData?.(state.rdos,client,state.rdoError);
     window.RL_CENTRAL_ENHANCE?.update?.({rows,entries,photos,orders,start:state.start,end:state.end,contract:state.contract});
   }
   async function navigate(screen) {
@@ -354,6 +359,8 @@
     $("main").hidden=false;
     document.querySelectorAll(".app-button[data-app]").forEach(b=>b.classList.remove("active"));
     state.screen=screen;
+    if(screen==="rdos")window.RL_RDO_BOARD?.show?.();
+    else window.RL_RDO_BOARD?.hide?.();
     for(const button of document.querySelectorAll("[data-screen]"))button.classList.toggle("active",button.dataset.screen===screen);
     for(const section of document.querySelectorAll(".screen")){
       const current=section.id==="screen-"+screen;
@@ -364,6 +371,7 @@
       overview:["Visão executiva","O que foi executado, registrado e acompanhado na obra."],
       production:["Produção e medições","Quantidade diária, acumulado, metas e medições físicas."],
       photos:["Galeria da obra","Evidências fotográficas vinculadas aos lançamentos."],
+      rdos:["Relatórios Diários de Obra","Histórico, aprovação, atividades, fotos e PDFs arquivados."],
       food:["Alimentação e equipe","Refeições por empresa e colaboradores cadastrados."],
       report:["Relatório gerencial","Documento consolidado, pronto para impressão ou PDF."],
       access:["Acesso da Diretoria","Criar ou redefinir credenciais exclusivas, sem permissão de edição."]
