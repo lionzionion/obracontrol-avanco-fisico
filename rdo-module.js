@@ -273,39 +273,83 @@ const mod={
    for(const name of fields)out[name]=String(d[name]||'').trim();
    return out;
  },
- async finalize(){
-   if(!this.admin||this.current?.status==='final'||this.busy)return;
-   if(!this.draft?.engineer_name?.trim())return this.notice('Preencha o nome do engenheiro responsável antes de finalizar.',true);
-   if(!confirm('Finalizar e arquivar este RDO? Após finalizar, a edição fica bloqueada e uma cópia do PDF com as fotos selecionadas será preservada na nuvem.'))return;
+ async updateStatus(status,extra={}){
+   if(!this.admin||!this.current?.id)return false;
+   const previous=this.current;
+   const {data,error}=await this.cloud.from('obc_rdos').update({
+     status,updated_by:this.state.user.id,...extra
+   }).eq('id',previous.id).eq('status',previous.status)
+      .eq('updated_at',previous.updated_at).select('*').maybeSingle();
+   if(error)throw error;
+   if(!data)throw Error('O RDO foi alterado por outro usuário. Atualize antes de continuar.');
+   this.current=data;
+   this.draft={...draftDefaults(data.work_date),...structuredClone(data)};
+   this.dirty=false;await this.refresh();this.render(true);
+   return true;
+ },
+ async submitForApproval(){
+   if(!this.admin||!this.draft||lockedStatus(this.current?.status)||this.busy)return;
+   if(!this.draft.engineer_name?.trim())return this.notice('Informe o engenheiro que elaborou o RDO antes de enviar.',true);
+   if(!this.draft.activities?.length&&!this.draft.occurrences?.trim()&&!this.draft.general_notes?.trim())
+     return this.notice('Inclua serviços, ocorrências ou observações para justificar o diário.',true);
+   if(!confirm('Enviar o RDO de '+dateBR(this.draft.work_date)+' para aprovação? Os campos ficarão bloqueados até a decisão.'))return;
    if(this.dirty||!this.current){
-     const ok=await this.saveDraft({silent:true});if(!ok)return;
+     const saved=await this.saveDraft({silent:true});if(!saved)return;
    }
-   if(this.busy)return;
+   this.busy=true;
+   try{await this.updateStatus('submitted');this.notice('RDO enviado para aprovação. Aguardando decisão do administrador.')}
+   catch(err){this.notice('Falha ao enviar RDO: '+err.message,true)}
+   finally{this.busy=false}
+ },
+ async review(status){
+   if(!this.admin||this.current?.status!=='submitted'||this.busy)return;
+   const reason=status==='returned'
+     ?prompt('Motivo da devolução (mínimo de 5 caracteres):','')
+     :prompt('Observação do aprovador (opcional):','');
+   if(reason===null)return;
+   if(status==='returned'&&reason.trim().length<5)return this.notice('Informe um motivo com ao menos 5 caracteres.',true);
+   if(status==='approved'&&!confirm('Confirmar aprovação de '+seq(this.current)+'? Seu nome, cargo e horário serão registrados e o RDO ficará bloqueado.'))return;
+   this.busy=true;
+   try{
+     await this.updateStatus(status,status==='approved'
+       ?{approval_note:reason.trim().slice(0,1500)}
+       :{return_reason:reason.trim().slice(0,1500)});
+     if(status==='approved'){
+       this.notice('Aprovação registrada. Gerando documento com o nome do aprovador...');
+       this.busy=false;
+       await this.archiveApprovedPdf();
+     }else this.notice('RDO devolvido para ajuste, com justificativa registrada.');
+   }catch(err){this.notice('Falha ao registrar decisão: '+err.message,true)}
+   finally{this.busy=false}
+ },
+ async archiveApprovedPdf(){
+   if(!this.admin||this.current?.status!=='approved'||this.busy)return;
+   if(this.current.pdf_path)return this.downloadSaved(this.current);
    this.busy=true;
    let path=null;
    try{
-     this.notice('Montando PDF com fotografias do dia...');
      const blob=await this.buildPdf(true);
-     if(blob.size>15*1024*1024)throw new Error('PDF excedeu 15 MB. Selecione menos imagens ou reduza o volume de fotos.');
-     path=this.draft.work_date.slice(0,4)+'/'+this.current.id+'/'+crypto.randomUUID()+'.pdf';
+     if(blob.size>15*1024*1024)throw Error('O PDF excede 15 MB. É necessária adequação do limite de armazenamento.');
+     path=this.current.work_date.slice(0,4)+'/'+this.current.id+'/'+crypto.randomUUID()+'.pdf';
      const upload=await this.cloud.storage.from('obc-rdo-pdfs').upload(path,blob,{contentType:'application/pdf',upsert:false});
      if(upload.error)throw upload.error;
-     const {data,error}=await this.cloud.from('obc_rdos').update({
-       status:'final',pdf_path:path,updated_by:this.state.user.id
-     }).eq('id',this.current.id).eq('updated_at',this.current.updated_at).select('*').maybeSingle();
-     if(error||!data)throw error||new Error('Este RDO foi alterado por outro usuário. Atualize e tente novamente.');
-     this.current=data;this.draft=structuredClone(data);this.dirty=false;path=null;
-     await this.refresh();this.render(true);
-     this.saveBlob(blob,this.filename(data));
-     this.notice('RDO finalizado, PDF arquivado e baixado: '+seq(data));
+     const {data,error}=await this.cloud.from('obc_rdos')
+       .update({pdf_path:path,updated_by:this.state.user.id})
+       .eq('id',this.current.id).eq('status','approved').is('pdf_path',null)
+       .eq('updated_at',this.current.updated_at).select('*').maybeSingle();
+     if(error||!data)throw error||Error('Outro usuário arquivou o RDO. Atualize a página para conferir.');
+     path=null;this.current=data;this.draft=structuredClone(data);this.dirty=false;
+     await this.refresh();this.render(true);this.saveBlob(blob,this.filename(data));
+     this.notice('PDF aprovado com a marca RL e identidade do aprovador arquivado na nuvem.');
    }catch(err){
      if(path)await this.cloud.storage.from('obc-rdo-pdfs').remove([path]);
-     this.notice('Não foi possível finalizar o RDO: '+(err.message||err),true);
+     this.notice('A aprovação ficou registrada, mas o PDF ainda não foi arquivado: '+err.message+'. Use Arquivar PDF aprovado para tentar novamente.',true);
    }finally{this.busy=false}
  },
  async downloadPdf(){
    if(!this.draft||this.busy)return;
-   if(this.current?.status==='final')return this.downloadSaved(this.current);
+   if(this.current?.status==='final'||(this.current?.status==='approved'&&this.current?.pdf_path))return this.downloadSaved(this.current);
+   if(this.current?.status==='approved')return this.archiveApprovedPdf();
    this.busy=true;
    try{
      const blob=await this.buildPdf(false);
@@ -316,7 +360,8 @@ const mod={
  },
  async downloadFromHistory(id){
    const r=this.rows.find(x=>x.id===id);if(!r)return this.notice('RDO não encontrado.',true);
-   if(r.status==='final')return this.downloadSaved(r);
+   if(['final','approved'].includes(r.status)&&r.pdf_path)return this.downloadSaved(r);
+   if(r.status==='approved'&&!this.admin)return this.notice('Aguardando arquivamento do PDF aprovado pelo administrador.',true);
    if(this.dirty&&!confirm('Descartar alterações não salvas para gerar o PDF do histórico?'))return;
    this.loadDate(r.work_date);await this.downloadPdf();
  },
