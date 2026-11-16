@@ -20,7 +20,7 @@
   const state = {
     profile:null,screen:"overview",start:"",end:"",contract:"all",
     items:[],entries:[],configs:[],photos:[],orders:[],profiles:[],
-    signedPhotos:new Map(),loading:false,ready:false
+    signedPhotos:new Map(),loading:false,ready:false,staffSummary:[],directorCredentials:null
   };
 
   function dateInRecife(date) {
@@ -48,18 +48,24 @@
     setLoginMessage(message);
     state.profile=null;
     state.ready=false;
+    state.directorCredentials=null;
+    if($("directorResult"))$("directorResult").hidden=true;
+    document.body.classList.remove("viewer");
   }
   function showApp() {
     $("authGate").hidden=true;
     $("application").hidden=false;
-    $("userLabel").textContent=state.profile.display_name+" · ADM";
+    const isViewer=state.profile.role==="diretoria";
+    document.body.classList.toggle("viewer",isViewer);
+    $("directorNav").hidden=isViewer;
+    $("userLabel").textContent=state.profile.display_name+(isViewer?" · DIRETORIA":" · ADM");
   }
-  async function checkAdmin(session) {
+  async function checkAccess(session) {
     if(!session?.user){showLogin();return false;}
     const {data,error}=await client.from("profiles")
       .select("id,display_name,role,active").eq("id",session.user.id).single();
-    if(error||!data||data.active!==true||data.role!=="admin"){
-      showLogin("Este painel é exclusivo para administradores RL. Sua conta continua válida para os outros aplicativos.");
+    if(error||!data||data.active!==true||!["admin","diretoria"].includes(data.role)){
+      showLogin("Somente contas administrativas ou da Diretoria podem consultar este painel.");
       return false;
     }
     state.profile=data;
@@ -78,7 +84,7 @@
       const {data,error}=await client.auth.signInWithPassword({email,password:$("password").value});
       if(error)throw error;
       $("password").value="";
-      if(await checkAdmin(data.session)) await loadAll();
+      if(await checkAccess(data.session)) await loadAll();
     } catch (error) {
       console.error("Falha de autenticação:",error);
       setLoginMessage("Não foi possível entrar. Confira usuário e senha.");
@@ -106,15 +112,23 @@
     $("refreshBtn").disabled=true;
     setNotice("Sincronizando os dados da nuvem…");
     try {
-      const [items,entries,configs,photos,orders,profiles]=await Promise.all([
+      const viewer=state.profile.role==="diretoria";
+      const [items,entries,configs,photos,rawOrders,profiles]=await Promise.all([
         fetchAll("obc_items","id,contract,code,description,unit,planned,group_code","created_at"),
         fetchAll("obc_entries","id,item_id,kind,work_date,qty,front,author,note,created_at","created_at"),
         fetchAll("obc_configs","item_id,unit,planned,updated_at","updated_at"),
         fetchAll("obc_photos","id,entry_id,item_id,path,name,created_at","created_at"),
-        fetchAll("orders","id,order_day,meal,status,archived,price,company","order_day"),
-        fetchAll("profiles","id,display_name,role,active,company","created_at")
+        viewer?client.rpc("rl_central_summary"):fetchAll("orders","id,order_day,meal,status,archived,price,company","order_day"),
+        viewer?Promise.resolve([]):fetchAll("profiles","id,username,display_name,role,active,company","created_at")
       ]);
-      Object.assign(state,{items,entries,configs,photos,orders,profiles,ready:true});
+      if(viewer&&rawOrders.error)throw rawOrders.error;
+      const summary=viewer?(rawOrders.data||{}):null;
+      const orders=viewer?(summary.orders||[]).map(g=>({
+        order_day:g.order_day,meal:g.meal,company:g.company,status:"confirmado",
+        archived:false,count:Number(g.count)||0,price:Number(g.total)||0
+      })):rawOrders;
+      const staffSummary=viewer?(summary.staff||[]):[];
+      Object.assign(state,{items,entries,configs,photos,orders,profiles,staffSummary,ready:true});
       state.signedPhotos.clear();
       renderEverything();
       $("syncedAt").textContent="Sincronizado em "+new Date().toLocaleString("pt-BR",{timeZone:"America/Recife"});
@@ -139,6 +153,13 @@
   };
   const validOrders = () => state.orders.filter(o=>periodMatch(o.order_day)&&
     o.status!=="cancelado"&&!o.archived);
+  const orderCount = rows=>rows.reduce((sum,o)=>sum+(Number(o.count)||1),0);
+  const staffCount = ()=>state.profile?.role==="diretoria"
+    ?state.staffSummary.reduce((sum,g)=>sum+(Number(g.count)||0),0)
+    :state.profiles.filter(p=>p.active&&p.role==="colaborador").length;
+  const staffCountByCompany = company=>state.profile?.role==="diretoria"
+    ?state.staffSummary.filter(g=>(g.company||"RL")===company).reduce((sum,g)=>sum+(Number(g.count)||0),0)
+    :state.profiles.filter(p=>p.active&&p.role==="colaborador"&&(p.company||"RL")===company).length;
   function serviceRows() {
     const all=entryAll();
     const period=periodEntries();
@@ -179,7 +200,7 @@
     $("kpiEntries").textContent=numeric(periodProduction.length);
     $("kpiEntriesSub").textContent="Lançamentos de produção no período";
     $("kpiPhotos").textContent=numeric(photos.length);
-    $("kpiMeals").textContent=numeric(orders.length);
+    $("kpiMeals").textContent=numeric(orderCount(orders));
     $("kpiMealsSub").textContent="Pedidos ativos RL e Solutio";
     $("healthStats").innerHTML=[
       renderStatsRow("Serviços iniciados",numeric(started)+" de "+numeric(rows.length),started,rows.length),
@@ -267,21 +288,21 @@
     }).join(""):empty("Não existem fotos vinculadas aos lançamentos deste período.");
   }
   function renderFood(orders) {
-    const total=orders.length;
+    const total=orderCount(orders);
     const cost=orders.reduce((sum,o)=>sum+safeNumber(o.price),0);
-    const staff=state.profiles.filter(p=>p.active&&p.role==="colaborador");
     $("foodCount").textContent=numeric(total);
     $("foodCost").textContent=money(cost);
-    $("staffCount").textContent=numeric(staff.length);
+    $("staffCount").textContent=numeric(staffCount());
     $("foodByCompany").innerHTML=["RL","SOLUTIO"].map((co,i)=>{
       const list=orders.filter(o=>(o.company||"RL")===co);
       const sum=list.reduce((a,o)=>a+safeNumber(o.price),0);
-      const people=staff.filter(p=>(p.company||"RL")===co).length;
-      return renderStatsRow(co==="RL"?"RL Construções":"Solutio",list.length+" refeições · "+money(sum)+" · "+people+" cadastrados",list.length,total,i===1);
+      const count=orderCount(list),people=staffCountByCompany(co);
+      return renderStatsRow(co==="RL"?"RL Construções":"Solutio",count+" refeições · "+money(sum)+" · "+people+" cadastrados",count,total,i===1);
     }).join("");
     $("foodByMeal").innerHTML=["almoco","cafe"].map((meal,i)=>{
       const list=orders.filter(o=>o.meal===meal);
-      return renderStatsRow(meal==="almoco"?"Almoços":"Cafés da manhã",list.length+" pedidos",list.length,total,i===1);
+      const count=orderCount(list);
+      return renderStatsRow(meal==="almoco"?"Almoços":"Cafés da manhã",count+" pedidos",count,total,i===1);
     }).join("");
   }
   function renderReport(rows,entries,photos,orders) {
@@ -303,7 +324,7 @@
       '<div class="report-stat"><b>'+numeric(started.length)+'/'+numeric(rows.length)+'</b><small>Serviços iniciados</small></div>'+
       '<div class="report-stat"><b>'+numeric(created.length)+'</b><small>Apontamentos de produção</small></div>'+
       '<div class="report-stat"><b>'+numeric(photos.length)+'</b><small>Fotografias</small></div>'+
-      '<div class="report-stat"><b>'+numeric(orders.length)+'</b><small>Refeições válidas</small></div></div>'+
+      '<div class="report-stat"><b>'+numeric(orderCount(orders))+'</b><small>Refeições válidas</small></div></div>'+
       '<h3>1. Principais produções do período</h3>'+serviceTable+
       '<h3>2. Últimos registros de execução</h3>'+
       (recent.length?'<table><thead><tr><th>Data</th><th>Serviço</th><th class="numeric">Quantidade</th></tr></thead><tbody>'+recent.map(e=>{
@@ -311,7 +332,7 @@
         return '<tr><td>'+escapeHTML(dayLabel(e.work_date))+'</td><td>'+escapeHTML((item?.code||"")+" · "+(e.front||item?.description||""))+'</td><td class="numeric">'+numeric(e.qty)+' '+escapeHTML(item?.unit||"")+'</td></tr>';
       }).join("")+'</tbody></table>':empty("Sem apontamentos."))+
       '<h3>3. Registro fotográfico (até 6 imagens)</h3>'+(photoHtml?'<div class="report-pics">'+photoHtml+'</div>':empty("Nenhuma fotografia acessível neste período."))+
-      '<h3>4. Alimentação e apoio administrativo</h3><p>'+numeric(orders.length)+' refeições válidas, subtotal de '+money(mealCost)+' (sem fretes). Cadastro: '+numeric(state.profiles.filter(p=>p.active&&p.role==="colaborador").length)+' colaboradores ativos; este total não confirma presença em obra.</p>'+
+      '<h3>4. Alimentação e apoio administrativo</h3><p>'+numeric(orderCount(orders))+' refeições válidas, subtotal de '+money(mealCost)+' (sem fretes). Cadastro: '+numeric(staffCount())+' colaboradores ativos; este total não confirma presença em obra.</p>'+
       '<h3>5. Ressalvas técnicas</h3><p>O progresso é calculado individualmente por serviço e meta; não existe percentual global ponderado ou Curva S homologada neste relatório. Medições e quantidades devem ser conferidas com os documentos contratuais.</p>';
   }
   function renderEverything() {
@@ -341,7 +362,8 @@
       production:["Produção e medições","Quantidade diária, acumulado, metas e medições físicas."],
       photos:["Galeria da obra","Evidências fotográficas vinculadas aos lançamentos."],
       food:["Alimentação e equipe","Refeições por empresa e colaboradores cadastrados."],
-      report:["Relatório gerencial","Documento consolidado, pronto para impressão ou PDF."]
+      report:["Relatório gerencial","Documento consolidado, pronto para impressão ou PDF."],
+      access:["Acesso da Diretoria","Criar ou redefinir credenciais exclusivas, sem permissão de edição."]
     };
     $("pageTitle").textContent=titles[screen][0];
     $("pageSubtitle").textContent=titles[screen][1];
@@ -388,9 +410,63 @@
     $("photoCaption").textContent=(item?.code||"")+" · "+dayLabel(entry?.work_date)+" · "+(entry?.front||"AMBEV Itapissuma")+" · "+(photo.name||"Foto da obra");
     $("photoModal").showModal();
   }
+
+  // O servidor gera a senha e o front-end a mostra apenas nesta sessão administrativa.
+  async function provisionDirector(event){
+    event.preventDefault();
+    if(state.profile?.role!=="admin")return;
+    const username=$("directorUsername").value.trim().toLowerCase();
+    const display_name=$("directorName").value.trim();
+    const company=$("directorCompany").value;
+    if(!/^[a-z][a-z0-9._-]{2,29}$/.test(username)||display_name.length<3){
+      $("directorFeedback").textContent="Confira o usuário e o nome informado.";return;
+    }
+    const button=$("directorSubmitBtn");
+    button.disabled=true;
+    $("directorResult").hidden=true;
+    state.directorCredentials=null;
+    $("directorCreatedPassword").textContent="";
+    $("directorFeedback").textContent="Solicitando credenciais ao servidor…";
+    try{
+      const existing=state.profiles.find(p=>p.username===username);
+      if(existing&&existing.role!=="diretoria")throw new Error("Este usuário já pertence a outro perfil. Escolha outro nome.");
+      const body=existing
+        ?{action:"reset_password",id:existing.id,password:"AUTO"}
+        :{action:"create",username,display_name,company,role:"diretoria",job_title:"Diretoria",password:"AUTO"};
+      const {data,error}=await client.functions.invoke("manage-users",{body});
+      if(error)throw error;
+      if(data?.error)throw new Error(data.error);
+      if(!data?.password)throw new Error("O servidor não retornou a senha. Atualize e tente novamente.");
+      state.directorCredentials={username,password:data.password};
+      $("directorCreatedUser").textContent=username;
+      $("directorCreatedPassword").textContent=data.password;
+      $("directorResult").hidden=false;
+      $("directorFeedback").textContent=existing?"Senha de acesso redefinida. A anterior deixou de funcionar.":"Usuário da Diretoria criado no Supabase.";
+      if(!existing)await loadAll();
+    }catch(error){
+      console.error("Criação do acesso gerencial:",error);
+      $("directorFeedback").textContent="Não foi possível gerar o acesso: "+(error.message||"falha de conexão");
+    }finally{button.disabled=false;}
+  }
+  async function copyDirectorCredentials(){
+    const c=state.directorCredentials;
+    if(!c)return;
+    const payload="RL Engenharia | Central de Controle de Obras\\n"+
+      "Link: https://lionzionion.github.io/obracontrol-avanco-fisico/central/\\n"+
+      "Usuário: "+c.username+"\\nSenha temporária: "+c.password+
+      "\\nPerfil: Diretoria (somente leitura). Altere a senha após entrar.";
+    try{
+      await navigator.clipboard.writeText(payload);
+      $("directorFeedback").textContent="Credenciais copiadas. Envie somente em conversa privada ao destinatário.";
+    }catch(error){
+      $("directorFeedback").textContent="Não foi possível copiar automaticamente. Copie o usuário e a senha exibidos acima.";
+    }
+  }
   async function init() {
     defaultRange();
     $("loginForm").addEventListener("submit",signIn);
+    $("directorCreateForm").addEventListener("submit",provisionDirector);
+    $("directorCopyBtn").addEventListener("click",copyDirectorCredentials);
     $("logoutBtn").addEventListener("click",signOut);
     $("refreshBtn").addEventListener("click",loadAll);
     $("applyFilters").addEventListener("click",applyFilters);
@@ -407,7 +483,7 @@
     try {
       const {data,error}=await client.auth.getSession();
       if(error)throw error;
-      if(await checkAdmin(data.session))await loadAll();
+      if(await checkAccess(data.session))await loadAll();
     }catch(error){console.error(error);showLogin("Não foi possível restaurar a sessão. Entre novamente.");}
     setInterval(()=>{if(state.profile&&!state.loading&&document.visibilityState==="visible")loadAll();},120000);
   }
