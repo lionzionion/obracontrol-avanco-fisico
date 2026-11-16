@@ -115,3 +115,22 @@ body{background:radial-gradient(circle at 72% -12%,rgba(40,102,123,.11),transpar
 @media(max-width:680px){.focus-title select,.daily-title select{width:100%}.focus-header{align-items:start;flex-direction:column}.summary-breakdown{grid-template-columns:1fr 1fr}.summary-tile{padding:12px}.summary-tile:last-child{grid-column:1 / -1}.workspace-header{align-items:stretch;flex-direction:column}.workspace-actions{flex-wrap:wrap}.workspace-actions .btn{flex:1}.workspace-frame{height:calc(100vh - 270px);min-height:500px}.progress-legend{gap:8px 14px;font-size:.7rem}.daily-title{flex-direction:column}.daily-title>*{width:100%}}
 @media print{.workspace{display:none!important}.focus-panel,.daily-production{break-inside:avoid}.report-sheet{background:white!important}}
 @media(prefers-reduced-motion:reduce){.nav-btn,.app-button,.btn,.progress-stage .segment,.kpi{transition:none!important}}
+
+/* Gestão exclusiva da conta de Diretoria */
+.access-panel{max-width:920px}
+.access-form{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:13px;align-items:end}
+.access-form>div{display:flex;flex-direction:column;gap:7px;min-width:0}
+.access-form label{color:#a7c5d1;font-size:.76rem;font-weight:700}
+.access-form input,.access-form select{min-height:43px;width:100%;background:#102b40;border:1px solid #31536a;color:#f4fbfe;border-radius:9px;padding:10px 12px}
+.access-form .btn{grid-column:1/-1;justify-self:start;margin-top:7px}
+.access-feedback{margin-top:16px;color:#bee28d;font-size:.82rem;min-height:20px}
+.access-result{margin-top:19px;padding:20px;border-radius:12px;border:1px solid #589167;background:linear-gradient(135deg,#112e37,#14392f)}
+.access-result h3{margin:0 0 5px;font-size:1.12rem}
+.access-result p{color:#b9d2c7;font-size:.77rem}
+.access-result>div{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #3b6d62}
+.access-result>div small{font-size:.77rem}
+.access-result code{font-size:.93rem;overflow-wrap:anywhere;color:#e5ffb7;font-weight:700;user-select:all}
+.access-result button{margin-top:17px}
+.viewer #directorNav{display:none!important}
+@media(max-width:730px){.access-form{grid-template-columns:1fr}.access-result>div{flex-direction:column;align-items:flex-start}}
+@media print{#screen-access{display:none!important}}
