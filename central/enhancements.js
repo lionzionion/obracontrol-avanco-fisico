@@ -155,6 +155,7 @@
     $("main").hidden=true;$("workspace").hidden=false;
     $("workTitle").textContent=entry.title;
     $("workSubtitle").textContent=entry.description+" · Sessão compartilhada";
+    if(window.RL_CENTRAL_ICONS?.icon)$("workIcon").innerHTML=window.RL_CENTRAL_ICONS.icon(key==="obras"?"production":"food");
     frame.title=entry.title+" dentro da Central";
     if(frame.getAttribute("src")!==entry.url)frame.src=entry.url;
     $("workExternal").href=entry.url;
