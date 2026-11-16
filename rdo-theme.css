@@ -1,0 +1,53 @@
+/* RL Engenharia - RDO e Relatorios */
+.rdo-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0}
+.rdo-stats>div{background:linear-gradient(155deg,#183045,#112339);border:1px solid #35546b;border-radius:14px;padding:16px}
+.rdo-stats small{display:block;color:#b2c9d9;font-weight:750;font-size:11px}
+.rdo-stats strong{display:block;font-weight:900;font-size:29px;margin-top:4px}
+.rdo-picker{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:14px 0}
+.rdo-picker label{display:grid;gap:6px;font-size:12px;font-weight:800;color:#a8c6d5}
+.rdo-picker .input{min-width:205px}
+.rdo-editor{margin:18px 0;padding:21px}
+.rdo-editor-title{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #2c465b;padding-bottom:15px}
+.rdo-editor-title h2{margin:0;font-size:22px;color:#e6f5f9}
+.rdo-editor-title small{color:#9fb4ca}
+.rdo-pill{font-size:11px;font-weight:850;display:inline-block;padding:7px 10px;border-radius:9px;white-space:nowrap}
+.rdo-pill.final{color:#b6f5d0;background:#1c503c;border:1px solid #367052}
+.rdo-pill.draft{color:#f7d7a7;background:#4e3928;border:1px solid #71583b}
+.rdo-editor h3{font-size:14px;letter-spacing:.2px;color:#b9ede4;margin:25px 0 13px;border-left:3px solid #4cdbc5;padding-left:10px}
+.rdo-activities{display:grid;gap:12px}
+.rdo-activity{background:#142940;border:1px solid #35556b;border-radius:13px;padding:16px;display:grid;gap:10px}
+.rdo-activity-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.rdo-activity-head strong{font-size:13px;line-height:1.4;max-width:720px}
+.rdo-activity-head span{border-radius:8px;background:#234858;padding:5px 10px;color:#bcf6e8;font-size:12px;font-weight:850;white-space:nowrap}
+.rdo-activity small{color:#a3c0d1;font-size:11px}
+.rdo-activity label,.rdo-field{display:grid;gap:6px;color:#b6cbd9;font-size:11px;font-weight:800}
+.rdo-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.rdo-fields .wide{grid-column:1/-1}
+.rdo-fields textarea{min-height:74px}
+.rdo-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:13px}
+.rdo-photo{display:grid;grid-template-rows:174px auto;gap:0;overflow:hidden;background:#152b40;border:1px solid #38546b;border-radius:13px}
+.rdo-photo-visual{background:#081723;display:grid;place-items:center;overflow:hidden}
+.rdo-photo-visual img{width:100%;height:100%;object-fit:cover}
+.rdo-missing{font-size:12px;color:#d5a6a5}
+.rdo-photo-content{display:grid;align-content:start;gap:8px;padding:12px}
+.rdo-photo-content small{font-size:10px;color:#9ab1c7}
+.rdo-photo-content label{font-size:11px;color:#bdd2df;font-weight:750}
+.rdo-photo-content .textarea{margin-top:5px;min-height:72px;font-weight:450}
+.rdo-select{display:flex;gap:8px;align-items:center}
+.rdo-select input{accent-color:#45d3c8;width:17px;height:17px}
+.rdo-order{display:flex;gap:8px}
+.rdo-order .btn{flex:1;padding:7px 10px;font-size:11px;min-height:34px}
+.rdo-counter{font-size:10px;color:#a5dfd1;font-weight:650}
+.rdo-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:22px 0}
+.rdo-actions button{flex:0 1 auto}
+.rdo-final-btn{border-color:#5c9a75!important;color:#c2f8cf!important;background:linear-gradient(135deg,#1c5442,#285a52)!important}
+.rdo-history{margin-top:20px}
+.rdo-history>h2{font-size:16px;margin:0 0 12px}
+.rdo-history-row{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:13px 0;border-top:1px solid #2a435a}
+.rdo-history-row strong{font-size:12px}
+.rdo-history-row small{display:block;color:#95abc0;font-size:11px;margin-top:3px}
+.rdo-history-actions{display:flex;gap:7px;flex:0 0 auto}
+.rdo-history-actions .btn{padding:7px 11px;min-height:34px}
+.rdo-alert{margin-bottom:15px;padding:12px;border:1px solid #a56e4d;background:#503425;color:#ffdaaf;border-radius:12px}
+@media(max-width:850px){.mobileNav{grid-template-columns:repeat(7,minmax(0,1fr));gap:0!important}.mobileNav button{font-size:9px;min-width:0;padding:5px 0}.mobileNav button span{font-size:15px}.rdo-editor{padding:14px}}
+@media(max-width:540px){.rdo-stats{gap:7px}.rdo-stats>div{padding:10px}.rdo-stats strong{font-size:23px}.rdo-stats small{font-size:9px}.rdo-fields{grid-template-columns:1fr}.rdo-activity-head{display:grid}.rdo-photo{grid-template-rows:190px auto}.rdo-photos{grid-template-columns:1fr}.rdo-picker .input{min-width:150px}.rdo-editor-title h2{font-size:17px}.rdo-history-row{align-items:flex-start}.rdo-history-actions{gap:4px}.rdo-history-actions .btn{font-size:10px;padding:5px 8px}.rdo-actions .btn{flex:1 1 46%;white-space:normal}}
