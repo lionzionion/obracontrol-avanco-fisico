@@ -1,63 +1,105 @@
-# ObraControl — Avanço Físico de Obras
+# ObraControl — acompanhamento físico compartilhado de obras
 
-Aplicativo web para acompanhamento de **produção física diária**, **medições físicas aprovadas** e **fotografias por item**. Os painéis exibem unidades, metas, saldos e percentuais: **não há preços nem valores em reais**.
+Aplicativo web para **apontamento diário de serviços**, **volumes e percentuais**, **medições aprovadas** e **fotografias por item** da obra AMBEV Itapissuma. A interface **não exibe preços nem valores em reais**.
 
-## Aplicativo
+## Situação da implantação
 
-**Endereço após configurar o GitHub Pages:** https://lionzionion.github.io/obracontrol-avanco-fisico/
+- ✅ **Código no GitHub**: [lionzionion/obracontrol-avanco-fisico](https://github.com/lionzionion/obracontrol-avanco-fisico)
+- ✅ **Banco Supabase** conectado ao projeto existente **AMBEV Pedidos RL** (São Paulo), usando tabelas independentes com prefixo `obc_`.
+- ✅ **70 serviços** cadastrados e disponíveis no banco: 13 de demolição/terraplenagem e 57 de gabiões/drenagem.
+- ✅ **Produção, medições e metas** persistidas no PostgreSQL com regras de acesso RLS.
+- ✅ **Fotos em bucket privado**, com links temporários gerados para cada sessão autenticada.
+- ✅ **Login reutilizado** do aplicativo AMBEV Pedidos RL; colaboradores ativos registram produção e administradores aprovam medições.
+- ⏳ **Hospedagem pública pendente**: é necessário ativar manualmente o GitHub Pages em [Settings → Pages](https://github.com/lionzionion/obracontrol-avanco-fisico/settings/pages), selecionando **GitHub Actions**. A conexão do GitHub não tem permissão para ativá-lo por conta própria.
+- ⚠️ A Vercel desta conta retornou bloqueio de criação por pendência de pagamento. Não alteramos a conta nem desativamos projetos ativos.
 
-Para publicar, acesse **Settings → Pages → Build and deployment → Source → GitHub Actions**. O workflow em `.github/workflows/pages.yml` publicará automaticamente os arquivos a cada atualização da branch `main`.
+### Link do aplicativo
 
-Para executar localmente, abra o projeto no VS Code com Live Server, ou rode `python -m http.server 8000` e acesse `http://localhost:8000`.
+Após ativar o GitHub Pages e executar novamente o workflow **Validar e publicar ObraControl** em **Actions**, o endereço esperado é:
 
-## Como utilizar
+https://lionzionion.github.io/obracontrol-avanco-fisico/
 
-1. Selecione a proposta **Demolição e terraplenagem** ou **Gabiões e drenagem**.
-2. Entre em **Lançar produção**, escolha o serviço e informe data, quantidade, frente, responsável e observações.
-3. Anexe até **6 fotos** ao registro, usando a câmera ou a galeria do celular.
-4. Acompanhe **Executado**, **Medido/aprovado**, **Saldo físico**, gráficos e fotos por item.
-5. Em **Medições**, registre separadamente a quantidade física aprovada, que não pode ultrapassar a execução.
-6. Em **Histórico e backup**, exporte CSV, faça backup JSON com as fotos e restaure seus registros quando necessário.
+**Não considere esse endereço ativo antes de aparecer uma execução verde do workflow e a página abrir no navegador.**
 
-Itens contratados em **VB** começam com uma meta genérica de 100%. Em **Ajustar meta física**, você pode configurar m³, m², m, t, unidades ou % com uma quantidade prevista.
+## Login e permissões
 
-## Fórmulas
+O ObraControl utiliza o mesmo Supabase Auth do aplicativo de pedidos da equipe, sem modificar contas ou senhas existentes.
 
-- Avanço executado (%) = executado acumulado / meta × 100.
-- Avanço medido (%) = quantidade aprovada acumulada / meta × 100.
-- Saldo físico = máx(0, meta − executado).
-- Não somamos m³, m², m, t, unidades e % em um indicador de volume único.
-- **Medido/aprovado é quantidade física e não equivale a faturamento.**
+- **Administrador ativo**: registra produção, aprova medições, altera metas e exclui lançamentos.
+- **Colaborador ativo**: consulta todos os itens, registra produção e adiciona fotografias.
+- **Restaurante / conta inativa / visitante sem login**: sem acesso ao banco do ObraControl.
 
-## Serviços cadastrados
+Na tela de entrada, use seu **usuário de acesso** (ou e-mail) e sua **senha já cadastrada** no sistema AMBEV Pedidos RL. Não existe cadastro público automático. Esse modelo permite acesso **de qualquer aparelho com internet, mas apenas por pessoas autorizadas**.
 
-O catálogo `itens.json` contém **70 itens**, extraídos das propostas da obra AMBEV Itapissuma com data de 13/11/2026:
+## Fluxo diário
 
-- 13 itens da aba **Proposta** de `PROPOSTA_DEMOLICAO_REV_01_13112026.xlsx`.
-- 57 itens da aba **Orçamento** de `PROPOSTA_GABIAO_AMBEV_RL_REVISADA_SOLUTIO_13112026.xlsx`.
+1. Entre no link pelo celular ou computador e faça login.
+2. Selecione **Gabiões e drenagem** ou **Demolição e terraplenagem**.
+3. Em **Lançar produção**, busque o item pelo código ou nome.
+4. Preencha data, quantidade, frente de serviço, responsável e observações.
+5. Tire fotos com a câmera ou selecione da galeria (até seis por lançamento).
+6. Clique em **Salvar lançamento**. Os dados e fotos são enviados para a nuvem.
+7. Confira o avanço em **Visão geral** e as fotos em **Serviços e fotos**.
+8. Um administrador pode registrar separadamente **Medição aprovada**.
+9. Utilize **Atualizar** para sincronizar imediatamente; a interface também consulta automaticamente a nuvem durante o uso.
 
-Os itens são também incorporados ao `index.html` para permitir execução sem dependências externas. Antes de usar como controle contratual oficial, confira as quantidades e as revisões efetivamente aprovadas.
+**Produção executada** e **medição aprovada** são quantidades físicas separadas, nunca valores faturados.
 
-## Privacidade e limites da versão atual
+## Quantidades, percentuais e metas
 
-> **Versão local, sem sincronização entre dispositivos.**
+- Avanço executado (%) = quantidade executada acumulada ÷ meta física × 100;
+- Avanço medido (%) = quantidade aprovada acumulada ÷ meta física × 100;
+- Saldo físico = máximo(0, meta − execução acumulada);
+- Não se somam unidades incompatíveis como m³, m², m, t e unidades.
+- Itens com unidade contratual **VB** podem ter meta e unidade física configuradas pelo administrador.
 
-Os lançamentos, fotos e metas personalizadas ficam **somente no IndexedDB de cada navegador**. O GitHub guarda o código-fonte e o catálogo, **não** recebe a produção nem as fotos lançadas. Não há login, permissões de administrador ou banco de dados compartilhado.
+O banco impede a aprovação de medições acima do volume executado. Quantidades são registradas com até duas casas decimais.
 
-Faça **backup JSON regularmente** antes de limpar o navegador ou trocar de aparelho; somente o JSON inclui as fotos. O repositório está **público**, portanto o catálogo de serviços e seus quantitativos podem ser vistos por terceiros. Não publique fotos internas, credenciais ou informações privadas no repositório.
+## Banco de dados e segurança
 
-## Próximas versões
+A migração SQL versionada está em:
+`supabase/migrations/20261116113000_obracontrol_shared_cloud_tables_v1.sql`
 
-- Acesso por usuários (administração, engenheiros e apontadores).
-- Banco de dados compartilhado com controle de acesso e armazenamento privado de fotos.
-- Aprovação de apontamentos, trilha de auditoria, relatório fotográfico e exportações PDF/Excel.
+Estrutura:
+- `public.obc_items` — catálogo de serviços;
+- `public.obc_configs` — metas físicas revisadas;
+- `public.obc_entries` — produção e medição por data;
+- `public.obc_photos` — referências das imagens;
+- Bucket privado `obc-fotos` — fotografias reais armazenadas na nuvem.
 
-## Arquivos
+As políticas RLS dependem de `public.profiles` do projeto AMBEV Pedidos RL. **Não execute a migração em outro banco sem adaptar a integração de usuários.**
 
-- `index.html` — aplicativo completo e responsivo;
-- `itens.json` — catálogo dos 70 serviços;
-- `manifest.webmanifest`, `icon.svg` e `sw.js` — instalação/uso offline dos arquivos estáticos;
-- `.github/workflows/pages.yml` — workflow de publicação no GitHub Pages;
-- `README.md` — documentação.
+O frontend utiliza somente a **chave pública** do Supabase. Não há chave de serviço ou credenciais privilegiadas no repositório. Fotos são exibidas com URLs temporárias autenticadas. Não envie arquivos internos diretamente para o GitHub.
 
-**ObraControl — Engenharia, Produção e Avanço Físico.**
+## Limitações atuais
+
+- Não foi possível fazer um teste ponta a ponta com uma senha real de colaborador, porque não acessamos as credenciais particulares dos usuários. Os testes transacionais de banco para produção e aprovação de medição passaram e foram revertidos.
+- O site ainda precisa da ativação inicial do GitHub Pages pelo proprietário.
+- **Importar backup local está desativado** na versão em nuvem para evitar sobrescrever dados compartilhados. Exportação CSV e backup JSON incluindo fotos permanecem disponíveis.
+- Não houve migração automática dos registros do antigo protótipo que estejam salvos em dispositivos individuais. Para migrá-los será necessária uma importação controlada.
+- O uso da infraestrutura AMBEV Pedidos RL compartilha a cota de armazenamento e Auth do mesmo projeto Supabase, apesar de as tabelas do ObraControl serem independentes.
+
+## Repositório
+
+| Arquivo | Finalidade |
+| --- | --- |
+| `index.html` | Aplicativo móvel e desktop, autenticação e sincronização |
+| `itens.json` | Catálogo inicial de 70 serviços, sem preços |
+| `supabase/migrations/*.sql` | Tabelas, validações, bucket de fotos e RLS |
+| `.github/workflows/pages.yml` | Verifica os arquivos e publica no GitHub Pages |
+| `manifest.webmanifest` e `icon.svg` | Atalho no celular |
+| `sw.js` | Cache dos arquivos estáticos; **dados são sempre consultados na nuvem** |
+
+## Verificação pós-publicação
+
+1. Entre como administrador e registre **uma produção de teste** claramente identificada.
+2. Entre como colaborador em outro celular e confirme que a produção aparece após atualização.
+3. Anexe uma foto e verifique a galeria no outro dispositivo.
+4. Confirme que a aprovação de medição só aparece para administradores.
+5. Exclua o registro de teste como administrador.
+
+Não utilize o sistema como referência oficial de execução antes de conferir as metas das planilhas com a versão contratual aprovada.
+
+---
+
+**ObraControl • Engenharia, produção e avanço físico, sem valores monetários.**
