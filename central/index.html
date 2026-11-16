@@ -26,7 +26,9 @@
   <link rel="icon" href="../icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./dashboard.css?v=2">
   <link rel="stylesheet" href="./premium.css?v=2">
+  <link rel="stylesheet" href="./rdo-board.css?v=1">
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+  <script defer src="./rdo-board.js?v=1"></script>
   <script defer src="./dashboard.js?v=2"></script>
   <script defer src="./enhancements.js?v=2"></script>
   <script defer src="./ui-icons.js?v=2"></script>
@@ -61,6 +63,7 @@
         <button class="nav-btn active" data-screen="overview" type="button"><span>▦</span> Visão executiva</button>
         <button class="nav-btn" data-screen="production" type="button"><span>▤</span> Produção e medições</button>
         <button class="nav-btn" data-screen="photos" type="button"><span>▧</span> Galeria da obra</button>
+        <button class="nav-btn" data-screen="rdos" type="button"><span>▣</span> RDOs da obra</button>
         <button class="nav-btn" data-screen="food" type="button"><span>◈</span> Alimentação e equipe</button>
         <button class="nav-btn" data-screen="report" type="button"><span>▣</span> Relatório gerencial</button>
         <button class="nav-btn" data-screen="access" type="button" id="directorNav"><span>♙</span> Acesso da Diretoria</button>
@@ -126,6 +129,14 @@
             <div class="graph" id="dailyChart"></div>
             <p class="chart-note">Dados do diário de produção. Gráfico por serviço, sem somar unidades incompatíveis.</p>
           </article>
+          <article class="panel rdo-quick-panel">
+            <div class="rdo-quick-main">
+              <div class="rdo-quick-icon" data-icon="rdos"></div>
+              <div><span class="eyebrow">DOCUMENTAÇÃO DA OBRA</span><h2>Relatórios Diários de Obra (RDO)</h2><p>Histórico, situação das aprovações e relatórios PDF arquivados.</p></div>
+            </div>
+            <div class="rdo-quick-stats"><span><strong id="rdoQuickApproved">—</strong> aprovados</span><span><strong id="rdoQuickWaiting">—</strong> aguardando análise</span></div>
+            <button class="btn primary" type="button" data-jump="rdos">Consultar RDOs</button>
+          </article>
           <div class="overview-grid">
             <article class="panel graph-panel"><div class="panel-head"><div><h2>Atividade diária</h2><p>Número de lançamentos por dia (sem somar unidades incompatíveis)</p></div><span class="tag">PRODUÇÃO</span></div><div id="activityChart" class="graph"></div><div class="legend"><span><i class="legend-dot"></i>Apontamentos de produção</span></div></article>
             <article class="panel"><div class="panel-head"><div><h2>Saúde do acompanhamento</h2><p>Indicadores de registro da obra</p></div></div><div id="healthStats" class="stat-stack"></div></article>
@@ -146,6 +157,36 @@
         </section>
         <section id="screen-photos" class="screen" hidden>
           <article class="panel"><div class="panel-head"><div><h2>Registro fotográfico da obra</h2><p>Fotos armazenadas no bucket privado, acessadas por links temporários</p></div><span class="tag" id="photoCount">—</span></div><div id="photoGrid" class="photo-grid"></div></article>
+        </section>
+        <section id="screen-rdos" class="screen" hidden>
+          <div class="rdo-context"><span data-icon="lock"></span><span>Histórico da obra <strong>AMBEV — Itapissuma/PE</strong>. Consulta protegida e somente leitura. Os RDOs são mostrados independentemente dos filtros gerais de produção; utilize os filtros específicos abaixo.</span></div>
+          <div class="rdo-dashboard-stats">
+            <article class="rdo-stat"><span>Total cadastrado</span><strong id="rdoStatTotal">—</strong><small>RDOs armazenados</small></article>
+            <article class="rdo-stat"><span>RDOs aprovados</span><strong id="rdoStatApproved">—</strong><small>Inclui finalizados legados</small></article>
+            <article class="rdo-stat"><span>Aguardando análise</span><strong id="rdoStatPending">—</strong><small>Enviados para aprovação</small></article>
+            <article class="rdo-stat"><span>Em elaboração / devolvidos</span><strong id="rdoStatDraft">—</strong><small>Necessitam providências da equipe</small></article>
+          </div>
+          <article class="panel rdo-filters">
+            <div class="rdo-filter-field"><label for="rdoSearch">Buscar RDO ou profissional</label><input type="search" id="rdoSearch" placeholder="Número, engenheiro, aprovador…"></div>
+            <div class="rdo-filter-field"><label for="rdoStatusFilter">Situação</label><select id="rdoStatusFilter"><option value="all">Todas as situações</option><option value="approved">Aprovados</option><option value="submitted">Aguardando análise</option><option value="returned">Devolvidos</option><option value="draft">Rascunhos</option><option value="final">Finalizados (legado)</option></select></div>
+            <div class="rdo-filter-field"><label for="rdoDateStart">De</label><input type="date" id="rdoDateStart"></div>
+            <div class="rdo-filter-field"><label for="rdoDateEnd">Até</label><input type="date" id="rdoDateEnd"></div>
+            <button class="btn ghost" id="rdoClearFilters" type="button">Limpar filtros</button>
+          </article>
+          <p id="rdoNotice" class="rdo-notice" role="status" aria-live="polite"></p>
+          <div class="rdo-master-detail">
+            <section class="panel rdo-list-panel" aria-label="Histórico de Relatórios Diários">
+              <div class="panel-head"><div><h2>Histórico de RDOs</h2><p id="rdoListCount">Carregando registros…</p></div><span class="tag">CONSULTA</span></div>
+              <div id="rdoList" class="rdo-list" aria-live="polite"></div>
+              <button id="rdoMore" class="btn ghost rdo-more" type="button" hidden>Mostrar mais relatórios</button>
+            </section>
+            <section class="panel rdo-detail-panel" aria-label="Detalhamento do RDO">
+              <div id="rdoDetail" class="rdo-detail">
+                <div class="rdo-empty"><h3>Selecione um relatório</h3><p>Consulte os serviços, as fotos, o andamento da aprovação e o PDF arquivado.</p></div>
+              </div>
+            </section>
+          </div>
+          <div class="info-note"><strong>Aprovação registrada no ObraControl:</strong> indica a decisão administrativa e o responsável informado. Não constitui assinatura digital nem aceite contratual da Solutio. Apenas PDFs já arquivados podem ser baixados neste painel.</div>
         </section>
         <section id="screen-food" class="screen" hidden>
           <div class="kpi-grid small"><article class="kpi"><div class="kpi-label">Refeições ativas</div><div class="kpi-value" id="foodCount">—</div><div class="kpi-sub">Não canceladas / não arquivadas</div></article><article class="kpi"><div class="kpi-label">Subtotal das refeições</div><div class="kpi-value" id="foodCost">—</div><div class="kpi-sub">Sem taxas de entrega</div></article><article class="kpi"><div class="kpi-label">Colaboradores cadastrados</div><div class="kpi-value" id="staffCount">—</div><div class="kpi-sub">Não representa presença na obra</div></article></div>
