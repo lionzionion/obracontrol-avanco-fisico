@@ -15,7 +15,7 @@ const window={};
 vm.runInNewContext(source,{
   window,document,confirm:()=>true,
   crypto:{randomUUID:()=>('uuid-'+(++seq))},
-  console,Date,setTimeout,clearTimeout
+  console,Date,structuredClone,setTimeout,clearTimeout
 },{filename:'rdo-module.js'});
 const rdo=window.ObraRDO;
 assert.ok(rdo,'Módulo RDO disponível');
@@ -35,6 +35,24 @@ const entry={id:'e1',kind:'production',date:'2026-11-17',itemId:'i1',
   qty:1.75,front:'Frente 01',author:'Engenheiro',note:'Base executada'};
 const state={role:'admin',user:{id:'user1'},entries:[entry],
   photos:[{id:'p1',entryId:'e1',itemId:'i1',path:'user1/e1/p1.jpg',name:'producao.jpg'}]};
+
+cloud.from=table=>({
+  select:()=>({
+    eq:()=>({
+      order:()=>({
+        limit:async()=>({data:[{id:entry.id,item_id:entry.itemId,kind:entry.kind,
+          work_date:entry.date,qty:entry.qty,front:entry.front,author:entry.author,
+          note:entry.note,created_at:'2026-11-17T18:51:00Z'}]})
+      })
+    }),
+    in:()=>({
+      order:()=>({
+        limit:async()=>({data:[{id:'p1',entry_id:'e1',item_id:'i1',
+          path:'user1/e1/p1.jpg',name:'producao.jpg',created_at:'2026-11-17T18:52:00Z'}]})
+      })
+    })
+  })
+});
 rdo.bridge={state,cloud,getItem:id=>({id,code:'01',description:'Pavimentação',contract:'demolicao'}),
   goal:()=>({unit:'m²'})};
 rdo.date='2026-11-17';
@@ -54,7 +72,7 @@ async function run(){
   rdo.draft.photo_manifest=[{kind:'manual',photo_id:'manual1',
     path:'user1/rdo1/manual1.jpg',source_name:'avulsa.jpg',
     include:true,position:0,caption:'Vista da frente'}];
-  rdo.synchronize();
+  await rdo.synchronize();
   assert.equal(rdo.draft.activities.length,2,'Atividade avulsa e produção coexistem');
   assert.equal(rdo.draft.activities.find(a=>a.kind==='manual').service,'Limpeza de canaleta');
   assert.equal(rdo.draft.activities.find(a=>a.code==='01').qty,1.75);

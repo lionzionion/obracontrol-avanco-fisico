@@ -94,3 +94,11 @@
 .rdo-upload-panel label small{font-size:11px;color:#a3c2d1;line-height:1.5}
 .rdo-upload-panel input[type=file]{flex:1 1 250px;min-width:0;max-width:380px;color:#d2e6f0;font-size:12px}
 @media(max-width:540px){.rdo-manual-grid{grid-template-columns:1fr}.rdo-upload-panel{padding:12px}.rdo-upload-panel input[type=file]{max-width:100%;width:100%}}
+
+/* RDO: divergência entre documento já emitido e os apontamentos mais recentes. */
+.rdo-outdated{margin:16px 0;padding:16px;border:1px solid #a77b46;background:linear-gradient(155deg,#493c29,#282f35);border-radius:13px;display:grid;gap:10px}
+.rdo-outdated strong{font-size:13px;color:#ffe0a7}
+.rdo-outdated p{margin:0;font-size:12px;line-height:1.6;color:#f4dfbf}
+.rdo-outdated .btn{justify-self:start;max-width:100%;white-space:normal;text-align:left}
+.rdo-sync-notice{margin:14px 0;padding:12px 14px;border:1px solid #4d8c8a;background:#193e40;border-radius:11px;font-size:12px;color:#bdf6eb}
+@media(max-width:540px){.rdo-outdated .btn{width:100%}}
