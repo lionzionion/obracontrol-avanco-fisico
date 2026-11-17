@@ -147,7 +147,7 @@ const mod={
    }
    this.dirty=false;
    this.render(true);
-   void this.loadManualPhotoPreviews();
+   void this.loadManualPhotoPreviews().catch(err=>this.notice('Falha ao abrir fotos avulsas: '+err.message,true));
  },
  synchronize(){
    if(!this.admin||!this.draft||lockedStatus(this.current?.status))return;
@@ -303,7 +303,7 @@ const mod={
    const records=this.bridge.state.entries.filter(e=>e.date===this.date);
    const photoCount=this.draft?.work_date===this.date?this.draft.photo_manifest.length:(this.bridge.state.photos||[]).filter(p=>records.some(e=>e.id===p.entryId)).length;
    const dateInput='<input id="rdoDate" class="input" type="date" value="'+esc(this.date)+'">';
-   const top='<div class="rdo-stats"><div><small>RDOs aprovados</small><strong>'+approvedCount+'</strong></div><div><small>Aguardando análise</small><strong>'+waitingCount+'</strong></div><div><small>Fotos na data</small><strong>'+photoCount+'</strong></div></div>'+
+   const top='<div class="rdo-stats"><div><small>RDOs aprovados</small><strong>'+approvedCount+'</strong></div><div><small>Aguardando análise</small><strong>'+waitingCount+'</strong></div><div><small>Fotos no RDO</small><strong>'+photoCount+'</strong></div></div>'+
     '<div class="rdo-picker"><label>Data de referência do RDO '+dateInput+'</label><button type="button" class="btn primary" data-rdo-action="load">Abrir dia</button></div>'+
     '<div class="note">O RDO reúne lançamentos de <strong>produção</strong> e também aceita <strong>atividades e fotos avulsas</strong>, sem gerar quantitativos ou medições. As fotos dos lançamentos continuam vinculadas à data de execução. Equipe, clima e equipamentos exigem conferência manual.</div>';
    if(!this.draft)this.loadDate(this.date);
