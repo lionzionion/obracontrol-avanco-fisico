@@ -421,7 +421,7 @@ const mod={
      (approved&&d.approval_note?'<div class="rdo-approval-note">Observação de aprovação: '+esc(d.approval_note)+'</div>':'')+
      (returned&&d.return_reason?'<div class="rdo-approval-return"><strong>Motivo da devolução:</strong> '+esc(d.return_reason)+'</div>':'')+
      oldVersionHtml+
-     (historyEvents.length?'<details class="rdo-approval-history"><summary>Histórico de decisões ('+historyEvents.length+')</summary>'+historyEvents.map(h=>'<p><strong>'+esc(({submitted:'Enviado',returned:'Devolvido',approved:'Aprovado'})[h.action]||h.action)+'</strong> · '+esc(h.actor_name||'Administrador')+' · '+whenBR(h.at)+(h.note?' — '+esc(h.note):'')+'</p>').join('')+'</details>':'')+
+     (historyEvents.length?'<details class="rdo-approval-history"><summary>Histórico de decisões ('+historyEvents.length+')</summary>'+historyEvents.map(h=>'<p><strong>'+esc(({submitted:'Enviado',returned:'Devolvido',approved:'Aprovado',reopened:'Reaberto para edição'})[h.action]||h.action)+'</strong> · '+esc(h.actor_name||'Administrador')+' · '+whenBR(h.at)+(h.note?' — '+esc(h.note):'')+'</p>').join('')+'</details>':'')+
      '<small class="rdo-approval-disclaimer">Aprovação administrativa registrada no ObraControl; não é assinatura digital nem aceite formal da Solutio.</small></section>';
    const sections=[
      ['weather','Clima / condições do tempo','Ex.: ensolarado (preenchimento manual)'],
@@ -576,9 +576,15 @@ const mod={
    if(!this.admin||this.current?.status!=='submitted'||this.busy)return;
    if(status==='approved'){
      try{
+       if(this.dirty)return this.notice('Há alterações não salvas neste RDO. Salve a revisão e envie novamente antes de aprovar.',true);
        const latest=await this.latestSnapshot();
-       const missing=this.inspectSnapshot(latest.snapshot);
-       if(missing.any)return this.notice('Aprovação bloqueada: existem lançamentos, fotos ou quantitativos que não foram incluídos no RDO enviado. Devolva para ajuste, sincronize, salve e reenvie.',true);
+       // A conferência deve usar o documento enviado no banco, nunca alterações ainda abertas no editor.
+       const draftBeforeCheck=this.draft;
+       this.draft={...draftDefaults(this.current.work_date),...structuredClone(this.current)};
+       let missing;
+       try{missing=this.inspectSnapshot(latest.snapshot)}
+       finally{this.draft=draftBeforeCheck}
+       if(missing.any)return this.notice('Aprovação bloqueada: existem lançamentos, fotos ou quantitativos que não foram incluídos no RDO enviado. Salve a revisão e reenvie para aprovação.',true);
      }catch(err){return this.notice('Aprovação bloqueada: não foi possível conferir os registros atuais: '+err.message,true)}
    }
    const reason=status==='returned'
