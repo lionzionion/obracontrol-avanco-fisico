@@ -11,7 +11,8 @@ const nf=(v,d=2)=>num(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximum
 const dateBR=s=>s?new Date(s+'T12:00:00').toLocaleDateString('pt-BR'):'—';
 const localToday=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const seq=r=>'RDO-'+String(r?.rdo_no||'NOVO').padStart(5,'0');
-const lockedStatus=s=>['submitted','approved','final'].includes(s);
+// Administradores podem revisar qualquer RDO no mesmo numero; ao salvar, a revisao volta a rascunho.
+const lockedStatus=()=>false;
 const statusLabels={draft:'Rascunho',submitted:'Aguardando aprovação',returned:'Devolvido para ajuste',approved:'Aprovado',final:'Finalizado (legado)'};
 const whenBR=s=>s?new Date(s).toLocaleString('pt-BR',{timeZone:'America/Recife',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}):'—';
 const fields=['weather','shift_description','workforce','equipment','safety_notes','occurrences','general_notes','engineer_name','reviewer_name'];
@@ -49,11 +50,11 @@ function buildDailySnapshot(bridge,date){
  return {activities,photo_manifest:manifest,source_entry_ids:entries.map(e=>e.id),source_generated_at:new Date().toISOString()};
 }
 const mod={
- bridge:null,rows:[],draft:null,current:null,date:localToday(),dirty:false,busy:false,uploading:false,manualPhotoUrls:{},manualPhotoExpiry:{},serverSnapshot:null,error:'',userId:null,
+ bridge:null,rows:[],draft:null,current:null,date:localToday(),dirty:false,busy:false,uploading:false,manualPhotoUrls:{},manualPhotoExpiry:{},linkedPhotoUrls:{},linkedPhotoExpiry:{},serverSnapshot:null,error:'',userId:null,
  get cloud(){return this.bridge?.cloud},
  get state(){return this.bridge?.state},
  get admin(){return this.state?.role==='admin'},
- reset(){this.rows=[];this.draft=null;this.current=null;this.dirty=false;this.uploading=false;this.manualPhotoUrls={};this.manualPhotoExpiry={};this.serverSnapshot=null;this.userId=null;this.error='';},
+ reset(){this.rows=[];this.draft=null;this.current=null;this.dirty=false;this.uploading=false;this.manualPhotoUrls={};this.manualPhotoExpiry={};this.linkedPhotoUrls={};this.linkedPhotoExpiry={};this.serverSnapshot=null;this.userId=null;this.error='';},
  init(bridge){
    this.bridge=bridge;
    document.addEventListener('click',ev=>{
@@ -84,7 +85,7 @@ const mod={
    }}
  },
  captureInput(target){
-   if(!this.draft||lockedStatus(this.current?.status))return;
+   if(!this.draft||!this.admin)return;
    if(target.id==='rdoDate')return;
    if(target.dataset.rdoField){
      const k=target.dataset.rdoField;
@@ -128,7 +129,8 @@ const mod={
      case 'move-up':case 'move-down':this.reorder(id,action==='move-up'?-1:1);break;
      case 'save':await this.saveDraft();break;
      case 'pdf':await this.downloadPdf();break;
-     case 'supplement-pdf':await this.downloadSupplementPdf();break;
+     case 'original-pdf':if(this.current?.pdf_path)await this.downloadSaved(this.current);break;
+     case 'revision-pdf':await this.downloadOldVersion(id);break;
      case 'history-pdf':await this.downloadFromHistory(id);break;
      case 'submit':await this.submitForApproval();break;
      case 'approve':await this.review('approved');break;
@@ -164,11 +166,12 @@ const mod={
    if(!this.draft||this.draft.work_date!==date||this.date!==date||
       (this.current?.id||null)!==rdoId||this.busy||this.uploading)return;
    this.serverSnapshot={date,rdoId,snapshot:latest.snapshot};
-   if(this.admin&&!lockedStatus(this.current?.status)){
+   if(this.admin){
      const changes=this.applySnapshot(latest.snapshot);
-     if(changes.any)this.notice('Novos lançamentos e fotos incluídos no editor. Confira e salve o rascunho.');
+     if(changes.any)this.notice('Atividades e fotos atualizadas no próprio RDO. Confira e salve as alterações.');
    }
    this.render(true);
+   void this.loadLinkedPhotoPreviews().catch(err=>this.notice('Falha nas miniaturas de produção: '+err.message,true));
  },
  inspectSnapshot(fresh){
    const d=this.draft||{activities:[],photo_manifest:[],source_entry_ids:[]};
@@ -250,7 +253,7 @@ const mod={
    return {snapshot,entries,photos};
  },
  async synchronize(){
-   if(!this.admin||!this.draft||lockedStatus(this.current?.status)||this.busy||this.uploading)return;
+   if(!this.admin||!this.draft||this.busy||this.uploading)return;
    if(!confirm('Conferir os lançamentos de produção e fotos do dia no servidor? Atividades avulsas e legendas editadas serão preservadas.'))return;
    try{
      const latest=await this.latestSnapshot();
@@ -259,6 +262,7 @@ const mod={
      this.render(true);
      this.notice(changes.any?'Registros sincronizados. Confira as atividades e fotos e clique em Salvar rascunho.':
        'RDO já está atualizado com os lançamentos e fotos do dia.');
+     void this.loadLinkedPhotoPreviews().catch(err=>this.notice('Falha nas miniaturas: '+err.message,true));
    }catch(err){this.notice('Não foi possível sincronizar: '+err.message,true)}
  },
 
@@ -321,7 +325,8 @@ const mod={
    const uploaded=[],failures=[];
    let persisted=false;
    try{
-     if((!this.current||this.dirty)&&!await this.saveDraft({silent:true}))return;
+     if((!this.current||this.dirty||['approved','final','submitted'].includes(this.current.status))&&
+       !await this.saveDraft({silent:true,allowUnchanged:true}))return;
      for(const file of files){
        try{
          const blob=await this.compressRdoPhoto(file),id=crypto.randomUUID();
@@ -357,7 +362,8 @@ const mod={
    if(!photo||!confirm('Remover esta foto do RDO? A imagem será excluída do armazenamento.'))return;
    this.uploading=true;
    try{
-     if(this.dirty&&!await this.saveDraft({silent:true}))return;
+     if((this.dirty||['approved','final','submitted'].includes(this.current?.status))&&
+       !await this.saveDraft({silent:true,allowUnchanged:true}))return;
      const before=this.draft.photo_manifest;
      this.draft.photo_manifest=before.filter(p=>p.photo_id!==id).map((p,i)=>({...p,position:i}));
      this.dirty=true;
@@ -382,7 +388,7 @@ const mod={
    const root=$('rdoApp');if(!root)return;
    if(!force&&((root.contains(document.activeElement)&&document.activeElement!==document.body) || this.dirty))return;
    if(!this.state?.user){root.innerHTML='<div class="empty">Faça login para acessar os RDOs.</div>';return}
-   const isAdmin=this.admin,readonly=!isAdmin||lockedStatus(this.current?.status);
+   const isAdmin=this.admin,readonly=!isAdmin;
    const state=this.current?.status||'draft',approved=state==='approved',submitted=state==='submitted',returned=state==='returned';
    const waitingCount=this.rows.filter(x=>x.status==='submitted').length;
    const approvedCount=this.rows.filter(x=>['approved','final'].includes(x.status)).length;
@@ -395,30 +401,17 @@ const mod={
    if(!this.draft)this.loadDate(this.date);
    const d=this.draft||draftDefaults(this.date);
    const locked=readonly?'disabled':'';
-   const latestLocal=this.serverSnapshot?.date===d.work_date&&
-     this.serverSnapshot.rdoId===(this.current?.id||null)
-     ?this.serverSnapshot.snapshot:buildDailySnapshot(this.bridge,d.work_date);
-   const gap=this.current?this.inspectSnapshot(latestLocal):null;
-   const gapLabel=gap?
-     [gap.missingEntries.length+' lançamento(s) novo(s)',
-      gap.missingPhotos.length+' foto(s) nova(s)',
-      gap.changedActivities.length+' serviço(s) diferente(s)'].join(' · '):'';
-   const staleNotice=gap?.any&&this.current?.status==='approved'
-     ?'<div class="rdo-outdated"><strong>⚠ RDO aprovado com registros posteriores não incluídos</strong>'+
-       '<p>Foram identificados '+esc(gapLabel)+'. O PDF aprovado original permanece intacto. Baixe um complemento para conferência; esse documento complementar não representa nova aprovação.</p>'+
-       '<button type="button" class="btn primary" data-rdo-action="supplement-pdf">Baixar PDF complementar com atividades e fotos faltantes</button></div>'
-     :gap?.any&&this.current?.status==='submitted'
-     ?'<div class="rdo-outdated"><strong>⚠ Novos registros após o envio</strong><p>'+esc(gapLabel)+'. Devolva este RDO para ajuste antes de aprová-lo.</p></div>'
-     :gap?.any&&this.current?.status==='final'
-     ?'<div class="rdo-outdated"><strong>⚠ RDO legado arquivado com diferenças nos apontamentos</strong><p>O original está protegido contra alterações.</p></div>'
-     :'';
-   const syncNotice=this.current&&!readonly&&this.dirty&&
-     (JSON.stringify(this.draft.source_entry_ids)!==JSON.stringify(this.current.source_entry_ids)||
-      this.draft.photo_manifest.some(p=>!this.current.photo_manifest?.some(q=>q.photo_id===p.photo_id)))
-     ?'<div class="rdo-sync-notice">Novas atividades ou fotos foram incorporadas ao editor. Confira as informações e clique em <strong>Salvar rascunho</strong>.</div>':'';
-
-   const draftStatus='<span class="rdo-pill '+(approved||state==='final'?'final':submitted?'pending':returned?'returned':'draft')+'">'+esc(this.current?statusLabels[state]||state:'Novo rascunho')+'</span>';
+   // Nenhum aviso de complemento: todos os registros entram no editor do proprio RDO.
+   const syncNotice='';
+   const revisionPending=this.dirty&&['approved','final','submitted'].includes(state);
+   const draftStatus='<span class="rdo-pill '+(revisionPending?'draft':approved||state==='final'?'final':submitted?'pending':returned?'returned':'draft')+'">'+
+     esc(revisionPending?'Em edição · salvar revisão':this.current?statusLabels[state]||state:'Novo rascunho')+'</span>';
    const historyEvents=(Array.isArray(d.approval_history)?d.approval_history:[]).slice(-10);
+   const olderPdfs=(d.approval_history||[]).filter(e=>e.action==='reopened'&&e.previous_pdf_path);
+   const oldVersionHtml=olderPdfs.length?'<details class="rdo-approval-history"><summary>PDFs anteriores ('+olderPdfs.length+')</summary>'+
+     olderPdfs.map((v,i)=>'<div class="rdo-version"><small>Versão '+(i+1)+' · '+whenBR(v.at)+
+       ' · '+esc(v.previous_status||'')+'</small><button class="btn" type="button" data-rdo-action="revision-pdf" data-id="'+esc(v.previous_pdf_path)+'">Baixar PDF anterior</button></div>').join('')+
+     '</details>':'';
    const approvalDetails='<section class="rdo-approval-panel"><h3>Fluxo de aprovação</h3>'+
      '<div class="rdo-approval-step"><span>1. Elaboração</span><strong>Engenheiro: '+esc(d.engineer_name||'Não informado')+'</strong></div>'+
      '<div class="rdo-approval-step"><span>2. Envio para análise</span><strong>'+(d.submitted_at?'Enviado em '+whenBR(d.submitted_at):'Ainda não enviado')+'</strong></div>'+
@@ -427,7 +420,8 @@ const mod={
        '</strong>'+(approved?'<small>'+esc(d.approver_job_title||'Administrador')+' · '+whenBR(d.approved_at)+'</small>':'')+'</div>'+
      (approved&&d.approval_note?'<div class="rdo-approval-note">Observação de aprovação: '+esc(d.approval_note)+'</div>':'')+
      (returned&&d.return_reason?'<div class="rdo-approval-return"><strong>Motivo da devolução:</strong> '+esc(d.return_reason)+'</div>':'')+
-     (historyEvents.length?'<details class="rdo-approval-history"><summary>Histórico de decisões ('+historyEvents.length+')</summary>'+historyEvents.map(h=>'<p><strong>'+esc(({submitted:'Enviado',returned:'Devolvido',approved:'Aprovado'})[h.action]||h.action)+'</strong> · '+esc(h.actor_name||'Administrador')+' · '+whenBR(h.at)+(h.note?' — '+esc(h.note):'')+'</p>').join('')+'</details>':'')+
+     oldVersionHtml+
+     (historyEvents.length?'<details class="rdo-approval-history"><summary>Histórico de decisões ('+historyEvents.length+')</summary>'+historyEvents.map(h=>'<p><strong>'+esc(({submitted:'Enviado',returned:'Devolvido',approved:'Aprovado',reopened:'Reaberto para edição'})[h.action]||h.action)+'</strong> · '+esc(h.actor_name||'Administrador')+' · '+whenBR(h.at)+(h.note?' — '+esc(h.note):'')+'</p>').join('')+'</details>':'')+
      '<small class="rdo-approval-disclaimer">Aprovação administrativa registrada no ObraControl; não é assinatura digital nem aceite formal da Solutio.</small></section>';
    const sections=[
      ['weather','Clima / condições do tempo','Ex.: ensolarado (preenchimento manual)'],
@@ -462,7 +456,7 @@ const mod={
     :'<div class="empty"><b>Nenhum serviço neste RDO</b>Adicione uma atividade avulsa, mesmo sem lançamento de produção, ou registre ocorrências e observações.</div>';
    const photoHTML=d.photo_manifest.length?d.photo_manifest.map((p,i)=>{
      const record=this.bridge.state.photos.find(x=>x.id===p.photo_id);
-     const preview=p.kind==='manual'?this.manualPhotoUrls[p.path]:record?.dataUrl;
+     const preview=p.kind==='manual'?this.manualPhotoUrls[p.path]:(record?.dataUrl||this.linkedPhotoUrls[p.path]);
      return '<div class="rdo-photo">'+
        '<div class="rdo-photo-visual">'+(preview?'<img src="'+esc(preview)+'" loading="lazy" alt="'+esc(p.source_name||'Fotografia da obra')+'">':'<div class="rdo-missing">Imagem indisponível</div>')+'</div>'+
        '<div class="rdo-photo-content"><label class="rdo-select"><input type="checkbox" data-rdo-include="'+esc(p.photo_id)+'" '+(p.include?'checked':'')+' '+locked+'> Incluir no PDF</label>'+
@@ -475,12 +469,18 @@ const mod={
    const history=this.rows.slice(0,45).map(r=>'<div class="rdo-history-row"><div><strong>'+esc(seq(r))+' · '+dateBR(r.work_date)+'</strong><small>'+esc(statusLabels[r.status]||r.status)+(r.approved_name?' · Aprovado por '+esc(r.approved_name)+' em '+whenBR(r.approved_at):'')+'</small></div>'+
     '<div class="rdo-history-actions"><button type="button" class="btn" data-rdo-action="open" data-id="'+esc(r.work_date)+'">Abrir</button><button type="button" class="btn" data-rdo-action="history-pdf" data-id="'+esc(r.id)+'">PDF</button></div></div>').join('')||'<div class="helpText">Nenhum RDO salvo nesta obra ainda.</div>';
    const buttons='<div class="rdo-actions">'+
-     (isAdmin&&!readonly?'<button type="button" class="btn" data-rdo-action="sync">↻ Atualizar registros do dia</button><button type="submit" class="btn primary" id="rdoSaveButton">Salvar rascunho</button><button type="button" class="btn rdo-submit-btn" data-rdo-action="submit">Enviar para aprovação</button>':'')+
-     '<button type="button" class="btn" data-rdo-action="pdf">⇩ '+((approved||state==='final')&&this.current?.pdf_path?'Baixar PDF aprovado':'Gerar PDF de prévia')+'</button>'+
+     (isAdmin?'<button type="button" class="btn" data-rdo-action="sync">↻ Atualizar registros do dia</button>'+
+       '<button type="submit" class="btn primary" id="rdoSaveButton">'+
+       (['approved','final','submitted'].includes(state)?'Salvar alterações':'Salvar rascunho')+'</button>'+
+       (!['approved','final','submitted'].includes(state)?'<button type="button" class="btn rdo-submit-btn" data-rdo-action="submit">Enviar para aprovação</button>':''):'')+
+     '<button type="button" class="btn" data-rdo-action="pdf">⇩ '+(
+       (approved||state==='final')&&this.current?.pdf_path&&!this.dirty?'Baixar PDF aprovado':'Gerar PDF de prévia')+'</button>'+
+     (this.current?.pdf_path&&this.dirty?
+       '<button type="button" class="btn" data-rdo-action="original-pdf">⇩ PDF aprovado anterior</button>':'')+
      (isAdmin&&submitted?'<button type="button" class="btn rdo-final-btn" data-rdo-action="approve">✓ Aprovar RDO</button><button type="button" class="btn rdo-return-btn" data-rdo-action="return">↶ Devolver para ajuste</button>':'')+
      (isAdmin&&approved&&!this.current?.pdf_path?'<button type="button" class="btn rdo-final-btn" data-rdo-action="archive">Arquivar PDF aprovado</button>':'')+
      '</div>';
-   const editor=staleNotice+syncNotice+'<article class="panel rdo-editor"><div class="rdo-editor-title"><div class="rdo-heading-with-logo"><img class="rdo-head-logo" src="./assets/rl-logo.svg" alt="Logomarca RL Engenharia — Fazendo Acontecer"><div><h2>'+esc(this.current?seq(this.current):'Novo RDO')+' · '+dateBR(d.work_date)+'</h2><small>AMBEV Itapissuma — Relatório Diário de Obra</small></div></div>'+draftStatus+'</div>'+
+   const editor='<article class="panel rdo-editor"><div class="rdo-editor-title"><div class="rdo-heading-with-logo"><img class="rdo-head-logo" src="./assets/rl-logo.svg" alt="Logomarca RL Engenharia — Fazendo Acontecer"><div><h2>'+esc(this.current?seq(this.current):'Novo RDO')+' · '+dateBR(d.work_date)+'</h2><small>AMBEV Itapissuma — Relatório Diário de Obra</small></div></div>'+draftStatus+'</div>'+
       '<form id="rdoForm"><h3>01. Serviços e atividades do dia</h3><div class="rdo-activities">'+activityHTML+'</div>'+
       (readonly?'':'<div class="rdo-section-actions"><button type="button" class="btn rdo-add-btn" data-rdo-action="add-activity">+ Adicionar atividade avulsa</button><small>Sem vínculo com itens contratuais, avanço físico ou medições.</small></div>')+
       '<h3>02. Informações do dia (revisão do engenheiro)</h3><div class="rdo-fields">'+fieldHTML+'</div>'+
@@ -491,8 +491,8 @@ const mod={
    root.innerHTML=(this.error?'<div class="rdo-alert">'+esc(this.error)+'</div>':'')+top+editor+
     '<div class="panel rdo-history"><h2>Histórico de RDOs</h2>'+history+'</div>';
  },
- async saveDraft({silent=false}={}){
-   if(!this.admin||lockedStatus(this.current?.status))return false;
+ async saveDraft({silent=false,allowUnchanged=false}={}){
+   if(!this.admin)return false;
    if(!this.draft||this.busy)return false;
    if(this.draft.activities.some(a=>a.kind==='manual'&&!String(a.service||'').trim())){
      this.notice('Preencha o título de cada atividade avulsa antes de salvar.',true);return false;
@@ -503,6 +503,10 @@ const mod={
      const changes=this.applySnapshot(latest.snapshot);
      this.serverSnapshot={date:this.draft.work_date,rdoId:this.current?.id||null,snapshot:latest.snapshot};
      if(changes.any)this.render(true);
+     if(this.current&&['approved','final','submitted'].includes(this.current.status)&&!this.dirty&&!allowUnchanged){
+       this.notice('Nenhuma alteração para salvar neste RDO.');return false;
+     }
+     const wasApproved=['approved','final'].includes(this.current?.status);
      const data=this.payload(this.current?.status==='returned'?'returned':'draft');
      let response;
      if(this.current?.id){
@@ -517,7 +521,7 @@ const mod={
      this.current=response.data;
      this.draft={...draftDefaults(this.date),...structuredClone(this.current)};
      this.dirty=false;await this.refresh();this.render(true);
-     if(!silent)this.notice('Rascunho salvo na nuvem: '+seq(this.current));
+     if(!silent)this.notice((wasApproved?'Revisão salva no mesmo RDO, pronta para nova aprovação: ':'Rascunho salvo na nuvem: ')+seq(this.current));
      return true;
    }catch(err){this.notice('Falha ao salvar RDO: '+(err.message||err),true);return false}
    finally{this.busy=false}
@@ -545,7 +549,7 @@ const mod={
    return true;
  },
  async submitForApproval(){
-   if(!this.admin||!this.draft||lockedStatus(this.current?.status)||this.busy)return;
+   if(!this.admin||!this.draft||['submitted','approved','final'].includes(this.current?.status)||this.busy)return;
    if(!this.draft.engineer_name?.trim())return this.notice('Informe o engenheiro que elaborou o RDO antes de enviar.',true);
    if(this.draft.activities.some(a=>a.kind==='manual'&&!String(a.service||'').trim()))return this.notice('Informe o título das atividades avulsas.',true);
    // Nunca envie uma versão congelada sem consultar lançamentos/fotos atuais no servidor.
@@ -572,9 +576,15 @@ const mod={
    if(!this.admin||this.current?.status!=='submitted'||this.busy)return;
    if(status==='approved'){
      try{
+       if(this.dirty)return this.notice('Há alterações não salvas neste RDO. Salve a revisão e envie novamente antes de aprovar.',true);
        const latest=await this.latestSnapshot();
-       const missing=this.inspectSnapshot(latest.snapshot);
-       if(missing.any)return this.notice('Aprovação bloqueada: existem lançamentos, fotos ou quantitativos que não foram incluídos no RDO enviado. Devolva para ajuste, sincronize, salve e reenvie.',true);
+       // A conferência deve usar o documento enviado no banco, nunca alterações ainda abertas no editor.
+       const draftBeforeCheck=this.draft;
+       this.draft={...draftDefaults(this.current.work_date),...structuredClone(this.current)};
+       let missing;
+       try{missing=this.inspectSnapshot(latest.snapshot)}
+       finally{this.draft=draftBeforeCheck}
+       if(missing.any)return this.notice('Aprovação bloqueada: existem lançamentos, fotos ou quantitativos que não foram incluídos no RDO enviado. Salve a revisão e reenvie para aprovação.',true);
      }catch(err){return this.notice('Aprovação bloqueada: não foi possível conferir os registros atuais: '+err.message,true)}
    }
    const reason=status==='returned'
@@ -621,95 +631,42 @@ const mod={
    }finally{this.busy=false}
  },
 
- async downloadSupplementPdf(){
-   if(this.busy||this.current?.status!=='approved'||!this.draft)return;
-   this.busy=true;
-   try{
-     const latest=await this.latestSnapshot();
-     const delta=this.inspectSnapshot(latest.snapshot);
-     if(!delta.any)return this.notice('Não há novos registros para complementar este RDO.');
-     const JsPDF=await this.ensureJsPdf(),logo=await this.brandLogoPng();
-     const pdf=new JsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
-     const PAGE_W=210,PAGE_H=297,LEFT=15,RIGHT=15,CONTENT=PAGE_W-LEFT-RIGHT;
-     let y=43;
-     const header=()=>{
-       pdf.setFillColor(11,35,58);pdf.rect(0,0,PAGE_W,34,'F');
-       pdf.addImage(logo,'PNG',13,5,60,17.6,undefined,'FAST');
-       pdf.setTextColor(245,250,254);pdf.setFont('helvetica','bold');pdf.setFontSize(10);
-       pdf.text('COMPLEMENTO DO RELATORIO DIARIO',81,14.5);
-       pdf.setFontSize(8);pdf.setFont('helvetica','normal');
-       pdf.text(seq(this.current)+' | '+dateBR(this.current.work_date),81,21);
-       pdf.setFillColor(127,58,39);pdf.roundedRect(159,26.1,36,5.5,1.2,1.2,'F');
-       pdf.setTextColor(255,238,227);pdf.setFont('helvetica','bold');pdf.setFontSize(7);
-       pdf.text('NAO APROVADO',177,30,{align:'center'});
-       pdf.setTextColor(39,55,67);y=42;
-     };
-     const newPage=()=>{pdf.addPage();header()};
-     const ensure=h=>{if(y+h>PAGE_H-23)newPage()};
-     const paragraph=(value,size=9,leading=4.5)=>{
-       pdf.setFont('helvetica','normal');pdf.setFontSize(size);pdf.setTextColor(46,60,72);
-       const lines=pdf.splitTextToSize(String(value||'Sem observacoes'),CONTENT);
-       for(const line of lines){ensure(leading+1);pdf.text(line,LEFT,y);y+=leading}
-       y+=3;
-     };
-     const heading=value=>{
-       ensure(17);pdf.setFillColor(232,240,246);pdf.roundedRect(LEFT,y,CONTENT,9,1.4,1.4,'F');
-       pdf.setTextColor(25,64,84);pdf.setFont('helvetica','bold');pdf.setFontSize(10);
-       pdf.text(value,LEFT+3,y+6);y+=14;
-     };
-     header();
-     paragraph('DOCUMENTO COMPLEMENTAR PARA CONFERENCIA. Nao altera o RDO aprovado nem substitui o PDF original. Requer analise e aprovacao especifica para adquirir valor formal.',9,5);
-     paragraph('Data da extracao: '+new Date().toLocaleString('pt-BR',{timeZone:'America/Recife'})+
-       ' | RDO original aprovado em: '+whenBR(this.current.approved_at),8.5,4.2);
-     paragraph('Motivo: apontamentos de producao ou fotografias da data nao incorporados ao manifesto do documento original.',8.5,4.2);
-     heading('01. ATIVIDADES AUSENTES OU ATUALIZADAS');
-     if(!delta.changedActivities.length&&!delta.removedActivities.length)
-       paragraph('Nenhuma diferenca de atividade fisica identificada.');
-     for(const a of delta.changedActivities){
-       ensure(17);
-       pdf.setFont('helvetica','bold');pdf.setFontSize(9.3);pdf.setTextColor(20,78,92);
-       const label=(a.code||'SERVICO')+' - '+(a.service||'Atividade registrada');
-       const lines=pdf.splitTextToSize(label,CONTENT);
-       for(const line of lines){ensure(5);pdf.text(line,LEFT,y);y+=5}
-       paragraph('Quantidade TOTAL atual cadastrada: '+nf(a.qty)+' '+(a.unit||'')+
-         (a.front?' | Frente: '+a.front:''),8.8,4.2);
-       if(a.summary)paragraph(a.summary,8.7,4.3);
+
+ async downloadOldVersion(path){
+   if(!this.current||!path)return;
+   const versions=(this.current.approval_history||[]).filter(x=>x.action==='reopened'&&x.previous_pdf_path===path);
+   if(!versions.length)return this.notice('Versão anterior não encontrada no histórico.',true);
+   const allowed=this.current.work_date.slice(0,4)+'/'+this.current.id+'/';
+   if(!path.startsWith(allowed)||!path.endsWith('.pdf'))return this.notice('Caminho do documento inválido.',true);
+   const row={...this.current,pdf_path:path};
+   await this.downloadSaved(row);
+ },
+ async loadLinkedPhotoPreviews(){
+   if(!this.cloud||!this.draft)return;
+   const photos=(this.draft.photo_manifest||[]).filter(p=>p.kind!=='manual');
+   const date=this.draft.work_date;
+   const missing=[...new Set(photos.filter(p=>p.path&&
+     (!this.linkedPhotoUrls[p.path]||this.linkedPhotoExpiry[p.path]<Date.now()+30000)&&
+     !(this.bridge.state.photos||[]).some(v=>v.id===p.photo_id&&v.dataUrl))
+     .map(p=>p.path))];
+   for(let offset=0;offset<missing.length;offset+=50){
+     const paths=missing.slice(offset,offset+50);
+     const {data,error}=await this.cloud.storage.from('obc-fotos').createSignedUrls(paths,3600);
+     if(error)throw error;
+     if(this.draft?.work_date!==date)return;
+     for(let i=0;i<paths.length;i++){
+       if(data?.[i]?.signedUrl){
+         this.linkedPhotoUrls[paths[i]]=data[i].signedUrl;
+         this.linkedPhotoExpiry[paths[i]]=Date.now()+3600000;
+       }
      }
-     for(const old of delta.removedActivities)
-       paragraph('ATENCAO: registro anterior nao consta mais nos apontamentos atuais: '+
-         (old.code||'')+' - '+(old.service||''),8.5,4.3);
-     heading('02. FOTOGRAFIAS NAO INCLUIDAS NO DOCUMENTO ORIGINAL');
-     if(!delta.missingPhotos.length)paragraph('Nenhuma fotografia nova identificada.');
-     for(let i=0;i<delta.missingPhotos.length;i++){
-       const p=delta.missingPhotos[i];
-       const jpeg=await this.photoJpeg(p);
-       const maxH=88,w=Math.min(CONTENT,maxH*jpeg.ratio),h=w/jpeg.ratio;
-       ensure(h+24);
-       pdf.setFont('helvetica','bold');pdf.setFontSize(8.8);pdf.setTextColor(27,71,89);
-       pdf.text('FOTO COMPLEMENTAR '+String(i+1).padStart(2,'0'),LEFT,y);y+=5;
-       pdf.addImage(jpeg.data,'JPEG',LEFT+(CONTENT-w)/2,y,w,h,undefined,'FAST');
-       y+=h+5;
-       paragraph(p.caption||'Registro fotografico da obra.',8.5,4.1);
-     }
-     if(delta.removedPhotos.length){
-       heading('03. REFERENCIAS FOTOGRAFICAS INDISPONIVEIS');
-       paragraph(delta.removedPhotos.length+' fotografia(s) que constavam no manifesto do RDO original nao foram encontradas nos apontamentos atuais. Conferir antes de usar o complemento.',8.6);
-     }
-     for(let page=1;page<=pdf.getNumberOfPages();page++){
-       pdf.setPage(page);pdf.setDrawColor(205,218,225);pdf.line(LEFT,283,PAGE_W-RIGHT,283);
-       pdf.setFont('helvetica','normal');pdf.setTextColor(107,116,124);pdf.setFontSize(7.2);
-       pdf.text('RL ENGENHARIA | '+seq(this.current)+' | COMPLEMENTO NAO APROVADO',LEFT,288);
-       pdf.text('Pagina '+page+' de '+pdf.getNumberOfPages(),PAGE_W-RIGHT,288,{align:'right'});
-     }
-     this.saveBlob(pdf.output('blob'),'RL-'+seq(this.current)+'-COMPLEMENTO-'+this.current.work_date+'.pdf');
-     this.notice('Complemento em PDF gerado para conferência. O documento aprovado original não foi alterado.');
-   }catch(err){this.notice('Falha ao gerar o complemento do RDO: '+(err.message||err),true)}
-   finally{this.busy=false}
+   }
+   if(missing.length&&this.draft?.work_date===date)this.render(true);
  },
  async downloadPdf(){
    if(!this.draft||this.busy)return;
-   if(this.current?.status==='final'||(this.current?.status==='approved'&&this.current?.pdf_path))return this.downloadSaved(this.current);
-   if(this.current?.status==='approved')return this.archiveApprovedPdf();
+   if(!this.dirty&&(this.current?.status==='final'||(this.current?.status==='approved'&&this.current?.pdf_path)))return this.downloadSaved(this.current);
+   if(this.current?.status==='approved'&&!this.dirty)return this.archiveApprovedPdf();
    this.busy=true;
    try{
      const blob=await this.buildPdf(false);
@@ -796,6 +753,7 @@ const mod={
    const JsPDF=await this.ensureJsPdf();
    const logoPng=await this.brandLogoPng();
    const d=this.draft;
+   const pdfStatus=this.dirty?'draft':this.current?.status;
    const pdf=new JsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
    const PW=210,PH=297,L=15,R=15,CW=PW-L-R;
    let y=43;
@@ -808,14 +766,14 @@ const mod={
      pdf.text('AMBEV ITAPISSUMA/PE | RL ENGENHARIA',83,20.3);
      pdf.setFontSize(8);
      pdf.text(seq(this.current||d)+'   |   '+dateBR(d.work_date),195,29.2,{align:'right'});
-     if(this.current?.status==='approved'){
+     if(pdfStatus==='approved'){
        pdf.setFillColor(31,103,76);pdf.roundedRect(163,4.3,32,6.5,1.6,1.6,'F');
        pdf.setTextColor(212,251,225);pdf.setFont('helvetica','bold');pdf.setFontSize(7.2);
        pdf.text('APROVADO',179,8.8,{align:'center'});
-     }else if(this.current?.status!=='final'){
+     }else if(pdfStatus!=='final'){
        pdf.setFillColor(246,233,207);pdf.roundedRect(146,4.3,49,6.5,1.6,1.6,'F');
        pdf.setTextColor(95,66,18);pdf.setFontSize(7);pdf.setFont('helvetica','bold');
-       pdf.text(this.current?.status==='submitted'?'EM APROVACAO':this.current?.status==='returned'?'DEVOLVIDO - REVISAR':'RASCUNHO - CONFERIR',170.5,8.8,{align:'center'});
+       pdf.text(pdfStatus==='submitted'?'EM APROVACAO':pdfStatus==='returned'?'DEVOLVIDO - REVISAR':'RASCUNHO - CONFERIR',170.5,8.8,{align:'center'});
      }
      pdf.setTextColor(33,49,66);y=41;
    };
@@ -890,19 +848,19 @@ const mod={
    }
    ruleTitle('05. ELABORACAO E APROVACAO');
    field('Elaborado por / responsavel tecnico',d.engineer_name);
-   if(this.current?.status==='approved'){
+   if(pdfStatus==='approved'){
      field('SITUACAO','APROVADO INTERNAMENTE');
      field('Aprovado por',d.approved_name);
      field('Funcao do aprovador',d.approver_job_title||'Administrador do sistema');
      field('Data e hora da aprovacao (Recife/PE)',whenBR(d.approved_at));
      if(d.approval_note)field('Observacao da aprovacao',d.approval_note);
-   }else if(this.current?.status==='submitted'){
+   }else if(pdfStatus==='submitted'){
      field('SITUACAO','EM APROVACAO');
      field('Enviado para analise em (Recife/PE)',whenBR(d.submitted_at));
-   }else if(this.current?.status==='returned'){
+   }else if(pdfStatus==='returned'){
      field('SITUACAO','DEVOLVIDO PARA AJUSTES');
      field('Motivo da devolucao',d.return_reason);
-   }else if(this.current?.status==='final'){
+   }else if(pdfStatus==='final'){
      field('SITUACAO','FINALIZADO NA VERSAO ANTERIOR (sem registro de aprovador)');
    }else field('SITUACAO','RASCUNHO - SEM APROVACAO');
    space(29);
