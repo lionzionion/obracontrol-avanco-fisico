@@ -79,7 +79,10 @@ const mod={
    const {data,error}=await this.cloud.from('obc_rdos').select('*').order('work_date',{ascending:false}).limit(366);
    if(error){this.error=error.message;this.notice('Erro ao carregar RDOs: '+error.message,true);return}
    this.rows=data||[];this.error='';
-   if(this.current){const updated=this.rows.find(x=>x.id===this.current.id);if(updated&&!this.dirty){this.current=updated;this.draft={...draftDefaults(updated.work_date),...structuredClone(updated)};}}
+   if(this.current){const updated=this.rows.find(x=>x.id===this.current.id);if(updated&&!this.dirty){
+     this.current=updated;this.draft={...draftDefaults(updated.work_date),...structuredClone(updated)};
+     if(this.admin&&!lockedStatus(updated.status))this.applySnapshot(buildDailySnapshot(this.bridge,updated.work_date));
+   }}
  },
  captureInput(target){
    if(!this.draft||lockedStatus(this.current?.status))return;
@@ -126,6 +129,7 @@ const mod={
      case 'move-up':case 'move-down':this.reorder(id,action==='move-up'?-1:1);break;
      case 'save':await this.saveDraft();break;
      case 'pdf':await this.downloadPdf();break;
+     case 'supplement-pdf':await this.downloadSupplementPdf();break;
      case 'history-pdf':await this.downloadFromHistory(id);break;
      case 'submit':await this.submitForApproval();break;
      case 'approve':await this.review('approved');break;
@@ -146,34 +150,104 @@ const mod={
      this.draft={...draftDefaults(date),...buildDailySnapshot(this.bridge,date)};
    }
    this.dirty=false;
+   if(this.admin&&!lockedStatus(this.current?.status)){
+     const local=buildDailySnapshot(this.bridge,date);
+     const changes=this.applySnapshot(local);
+     if(changes.any)this.notice('Novos registros de produção/fotos incluídos na prévia. Confira e salve o RDO.');
+   }
    this.render(true);
    void this.loadManualPhotoPreviews().catch(err=>this.notice('Falha ao abrir fotos avulsas: '+err.message,true));
  },
- synchronize(){
-   if(!this.admin||!this.draft||lockedStatus(this.current?.status))return;
-   if(!confirm('Atualizar os serviços e as fotos conforme os lançamentos atuais? As descrições e legendas já editadas serão mantidas.'))return;
-   const fresh=buildDailySnapshot(this.bridge,this.draft.work_date);
-   const oldActivities=new Map(this.draft.activities.map(a=>[a.key,a]));
+
+ inspectSnapshot(fresh){
+   const d=this.draft||{activities:[],photo_manifest:[],source_entry_ids:[]};
+   const oldEntries=new Set(Array.isArray(d.source_entry_ids)?d.source_entry_ids:[]);
+   const oldPhotos=new Set((d.photo_manifest||[]).map(p=>p.photo_id));
+   const currentAuto=(d.activities||[]).filter(a=>a.kind!=='manual');
+   const oldAuto=new Map(currentAuto.map(a=>[a.key,a]));
+   const changedActivities=fresh.activities.filter(a=>{
+     const previous=oldAuto.get(a.key);
+     return !previous||num(previous.qty)!==num(a.qty)||
+       JSON.stringify([...(previous.source_entry_ids||[])].sort())!==
+       JSON.stringify([...(a.source_entry_ids||[])].sort());
+   });
+   const removedActivities=currentAuto.filter(a=>!fresh.activities.some(v=>v.key===a.key));
+   const missingEntries=fresh.source_entry_ids.filter(id=>!oldEntries.has(id));
+   const deletedEntries=[...oldEntries].filter(id=>!fresh.source_entry_ids.includes(id));
+   const missingPhotos=fresh.photo_manifest.filter(p=>!oldPhotos.has(p.photo_id));
+   const removedPhotos=(d.photo_manifest||[]).filter(p=>p.kind!=='manual'&&!fresh.photo_manifest.some(v=>v.photo_id===p.photo_id));
+   return {missingEntries,deletedEntries,missingPhotos,removedPhotos,changedActivities,removedActivities,
+     any:!!(missingEntries.length||deletedEntries.length||missingPhotos.length||removedPhotos.length||
+       changedActivities.length||removedActivities.length)};
+ },
+ applySnapshot(fresh){
+   const change=this.inspectSnapshot(fresh);
+   if(!change.any)return change;
+   const oldActivities=new Map((this.draft.activities||[]).filter(a=>a.kind!=='manual').map(a=>[a.key,a]));
    this.draft.activities=[
-     ...fresh.activities.map(a=>({...a,summary:oldActivities.get(a.key)?.summary||a.summary})),
+     ...fresh.activities.map(a=>{
+       const old=oldActivities.get(a.key);
+       const generated='Execução registrada no apontamento diário. Quantidade conforme lançamento.';
+       const edited=old?.summary&&old.summary!==generated;
+       return {...a,summary:edited?old.summary:a.summary};
+     }),
      ...this.draft.activities.filter(a=>a.kind==='manual')
    ];
-   // Preserva fotos avulsas e a ordem já escolhida; remove apenas referências automáticas obsoletas.
-   const remaining=new Map(fresh.photo_manifest.map(p=>[p.photo_id,p]));
-   const photos=[];
-   for(const p of this.draft.photo_manifest){
-     if(p.kind==='manual'){photos.push(p);continue}
-     const incoming=remaining.get(p.photo_id);
-     if(!incoming)continue;
-     photos.push({...incoming,caption:p.caption??incoming.caption,include:p.include??true});
-     remaining.delete(p.photo_id);
+   const incoming=new Map(fresh.photo_manifest.map(p=>[p.photo_id,p]));
+   const merged=[];
+   for(const p of this.draft.photo_manifest||[]){
+     if(p.kind==='manual'){merged.push(p);continue}
+     const current=incoming.get(p.photo_id);
+     if(!current)continue;
+     merged.push({...current,caption:p.caption??current.caption,include:p.include??true});
+     incoming.delete(p.photo_id);
    }
-   photos.push(...remaining.values());
-   this.draft.photo_manifest=photos.map((p,i)=>({...p,position:i}));
+   merged.push(...incoming.values());
+   this.draft.photo_manifest=merged.map((p,i)=>({...p,position:i}));
    this.draft.source_entry_ids=fresh.source_entry_ids;
    this.draft.source_generated_at=fresh.source_generated_at;
    this.dirty=true;
-   this.render(true);this.notice('Serviços, fotos e quantitativos do dia atualizados.');
+   return change;
+ },
+ async latestSnapshot(){
+   const date=this.draft?.work_date;
+   if(!date)throw Error('Abra uma data do RDO antes de sincronizar.');
+   const response=await this.cloud.from('obc_entries')
+     .select('id,item_id,kind,work_date,qty,front,author,note,created_at')
+     .eq('work_date',date).order('created_at',{ascending:true}).limit(1001);
+   if(response.error)throw response.error;
+   if((response.data||[]).length>1000)throw Error('Mais de 1000 lançamentos no dia. A sincronização precisa de paginação.');
+   const entries=(response.data||[]).map(e=>({
+     id:e.id,itemId:e.item_id,kind:e.kind,date:e.work_date,qty:num(e.qty),
+     front:e.front,author:e.author,note:e.note,createdAt:e.created_at
+   }));
+   const photos=[];
+   for(let i=0;i<entries.length;i+=80){
+     const ids=entries.slice(i,i+80).map(e=>e.id);
+     const result=await this.cloud.from('obc_photos')
+       .select('id,entry_id,item_id,path,name,created_at')
+       .in('entry_id',ids).order('created_at',{ascending:true}).limit(1001);
+     if(result.error)throw result.error;
+     if((result.data||[]).length>1000)throw Error('Há muitas fotos no dia para esta sincronização.');
+     photos.push(...(result.data||[]).map(p=>({
+       id:p.id,entryId:p.entry_id,itemId:p.item_id,path:p.path,name:p.name,createdAt:p.created_at
+     })));
+   }
+   const snapshot=buildDailySnapshot({
+     state:{entries,photos},getItem:this.bridge.getItem,goal:this.bridge.goal
+   },date);
+   return {snapshot,entries,photos};
+ },
+ async synchronize(){
+   if(!this.admin||!this.draft||lockedStatus(this.current?.status)||this.busy||this.uploading)return;
+   if(!confirm('Conferir os lançamentos de produção e fotos do dia no servidor? Atividades avulsas e legendas editadas serão preservadas.'))return;
+   try{
+     const latest=await this.latestSnapshot();
+     const changes=this.applySnapshot(latest.snapshot);
+     this.render(true);
+     this.notice(changes.any?'Registros sincronizados. Confira as atividades e fotos e clique em Salvar rascunho.':
+       'RDO já está atualizado com os lançamentos e fotos do dia.');
+   }catch(err){this.notice('Não foi possível sincronizar: '+err.message,true)}
  },
 
  addActivity(){
@@ -391,6 +465,9 @@ const mod={
    }
    this.busy=true;
    try{
+     const latest=await this.latestSnapshot();
+     const changes=this.applySnapshot(latest.snapshot);
+     if(changes.any)this.render(true);
      const data=this.payload(this.current?.status==='returned'?'returned':'draft');
      let response;
      if(this.current?.id){
@@ -436,9 +513,18 @@ const mod={
    if(!this.admin||!this.draft||lockedStatus(this.current?.status)||this.busy)return;
    if(!this.draft.engineer_name?.trim())return this.notice('Informe o engenheiro que elaborou o RDO antes de enviar.',true);
    if(this.draft.activities.some(a=>a.kind==='manual'&&!String(a.service||'').trim()))return this.notice('Informe o título das atividades avulsas.',true);
+   // Nunca envie uma versão congelada sem consultar lançamentos/fotos atuais no servidor.
+   try{
+     const latest=await this.latestSnapshot();
+     const missing=this.applySnapshot(latest.snapshot);
+     if(missing.any){
+       this.render(true);
+       return this.notice('Foram identificados novos lançamentos, fotos ou quantitativos. Eles foram incluídos no rascunho; confira e salve antes de enviar para aprovação.',true);
+     }
+   }catch(err){return this.notice('Envio bloqueado: não foi possível conferir os apontamentos atuais: '+err.message,true)}
    if(!this.draft.activities?.length&&!this.draft.occurrences?.trim()&&!this.draft.general_notes?.trim())
      return this.notice('Inclua serviços, ocorrências ou observações para justificar o diário.',true);
-   if(!confirm('Enviar o RDO de '+dateBR(this.draft.work_date)+' para aprovação? Os campos ficarão bloqueados até a decisão.'))return;
+   if(!confirm('Enviar o RDO de '+dateBR(this.draft.work_date)+' para aprovação? Todos os lançamentos e fotos do dia foram conferidos. Os campos ficarão bloqueados até a decisão.'))return;
    if(this.dirty||!this.current){
      const saved=await this.saveDraft({silent:true});if(!saved)return;
    }
@@ -449,6 +535,13 @@ const mod={
  },
  async review(status){
    if(!this.admin||this.current?.status!=='submitted'||this.busy)return;
+   if(status==='approved'){
+     try{
+       const latest=await this.latestSnapshot();
+       const missing=this.inspectSnapshot(latest.snapshot);
+       if(missing.any)return this.notice('Aprovação bloqueada: existem lançamentos, fotos ou quantitativos que não foram incluídos no RDO enviado. Devolva para ajuste, sincronize, salve e reenvie.',true);
+     }catch(err){return this.notice('Aprovação bloqueada: não foi possível conferir os registros atuais: '+err.message,true)}
+   }
    const reason=status==='returned'
      ?prompt('Motivo da devolução (mínimo de 5 caracteres):','')
      :prompt('Observação do aprovador (opcional):','');
