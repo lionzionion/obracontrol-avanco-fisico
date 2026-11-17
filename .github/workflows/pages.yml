@@ -47,6 +47,7 @@ jobs:
           node --check rl-brand.js
           node --check bm-module.js
           node --check rdo-module.js
+          node tests/rdo-manual.test.cjs
           node --check central/quantity-normalization.js
           node central/tests/verba.test.cjs
           node --check central/dashboard.js

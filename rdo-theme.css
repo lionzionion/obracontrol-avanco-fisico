@@ -76,3 +76,21 @@
 .rdo-submit-btn{color:#b5e6ff!important;border-color:#47748f!important}
 .rdo-return-btn{color:#ffccaf!important;border-color:#9b6951!important}
 @media(max-width:600px){.rdo-heading-with-logo{flex-direction:column;align-items:flex-start;gap:8px}.rdo-head-logo{width:168px;max-width:100%}.rdo-approval-step{display:grid}.rdo-approval-step small{text-align:left}.rdo-approval-panel{padding:12px}}
+
+
+/* Atividades e imagens avulsas no RDO, sem lançamento de medição */
+.rdo-section-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:13px 0 8px}
+.rdo-section-actions small{color:#9dbed1;font-size:11px}
+.rdo-add-btn{border:1px solid #449583!important;background:#174b50!important;color:#d3fff2!important;font-weight:800}
+.rdo-manual-activity{border-color:#4c8b8b;background:linear-gradient(155deg,#173944,#132b40)}
+.rdo-manual-activity .rdo-activity-head strong{color:#b9f4e5}
+.rdo-manual-activity .input,.rdo-manual-activity .textarea{width:100%;min-width:0}
+.rdo-manual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.rdo-remove-btn{border:1px solid #895c56!important;color:#ffcfbe!important;background:#462c2d!important;white-space:normal}
+.rdo-photo .rdo-remove-btn{justify-self:start;font-size:11px;padding:7px 11px}
+.rdo-upload-panel{display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:13px;padding:15px;border:1px dashed #4d8c8a;background:#12313e;border-radius:13px;margin-bottom:14px}
+.rdo-upload-panel label{display:grid;gap:5px;flex:1 1 200px;cursor:pointer}
+.rdo-upload-panel label strong{font-size:13px;color:#d2f7ed}
+.rdo-upload-panel label small{font-size:11px;color:#a3c2d1;line-height:1.5}
+.rdo-upload-panel input[type=file]{flex:1 1 250px;min-width:0;max-width:380px;color:#d2e6f0;font-size:12px}
+@media(max-width:540px){.rdo-manual-grid{grid-template-columns:1fr}.rdo-upload-panel{padding:12px}.rdo-upload-panel input[type=file]{max-width:100%;width:100%}}

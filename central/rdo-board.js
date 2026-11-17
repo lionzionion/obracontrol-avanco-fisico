@@ -25,6 +25,8 @@
   const status = value => statusInfo[value]||{text:String(value||"Não informado"),css:"draft"};
   const empty = text => '<p class="rdo-label-empty">'+esc(text)+'</p>';
   const toText = value => typeof value==="string"&&value.trim()?value.trim():"Não informado";
+  const photoBucket = photo => photo?.kind==="manual"?"obc-rdo-photos":"obc-fotos";
+  const photoCacheKey = photo => photoBucket(photo)+":"+photo.path;
   const validPath = (path,extension) => typeof path==="string"&&path.length<=900
     &&/^[a-zA-Z0-9_.\/-]+$/.test(path)&&!path.includes("..")&&!path.startsWith("/")
     &&(extension==="pdf"?/\.pdf$/i.test(path):/\.(jpg|jpeg|png|webp)$/i.test(path));
@@ -137,11 +139,14 @@
     const activities=Array.isArray(row.activities)?row.activities:[];
     if(!activities.length)return empty("Nenhuma atividade foi detalhada neste RDO.");
     return '<div class="rdo-activities">'+activities.map(item=>{
-      const name=[item.code,item.service].filter(Boolean).join(" — ");
-      const responsible=Array.isArray(item.responsibles)?item.responsibles.filter(Boolean).join(", "):"";
+      const manual=item.kind==="manual";
+      const name=manual?"Atividade adicional — "+(item.service||"Sem título"):
+        [item.code,item.service].filter(Boolean).join(" — ");
+      const responsible=manual?String(item.responsible||""):
+        Array.isArray(item.responsibles)?item.responsibles.filter(Boolean).join(", "):"";
       const where=item.front?" · Frente: "+item.front:"";
       return '<article class="rdo-activity"><div class="rdo-activity-head"><strong>'+esc(name||"Atividade sem nome")+'</strong>'+
-        '<span class="qty">'+esc(nf(item.qty))+' '+esc(item.unit||"")+'</span></div>'+
+        (manual?'<span class="qty">Avulsa</span>':'<span class="qty">'+esc(nf(item.qty))+' '+esc(item.unit||"")+'</span>')+'</div>'+
         (item.summary?'<p>'+esc(item.summary)+'</p>':'')+
         (responsible||where?'<small>'+esc((responsible?"Responsável: "+responsible:"")+where)+'</small>':'')+
         '</article>';
@@ -156,7 +161,7 @@
     const photos=photosOf(row);
     if(!photos.length)return empty("Este relatório não inclui fotografias.");
     return '<div class="rdo-photo-grid">'+photos.map((photo,i)=>{
-      const id=String(photo.photo_id||i),cached=state.photoUrls.get(photo.path);
+      const id=String(photo.photo_id||i),cached=state.photoUrls.get(photoCacheKey(photo));
       const url=cached&&cached.expires>Date.now()+30000?cached.url:null;
       return url?'<button type="button" class="rdo-photo" data-rdo-photo="'+esc(id)+'" aria-label="Ampliar foto '+(i+1)+'">'+
         '<img loading="lazy" src="'+esc(url)+'" alt="Foto '+(i+1)+' do relatório '+esc(number(row))+'">'+
@@ -198,7 +203,7 @@
       prose("Ocorrências",row.occurrences)+
       prose("Observações gerais",row.general_notes)+
       '</div></section>';
-    const activity='<section class="rdo-section"><h3>Serviços e produção · '+acts.length+' registros</h3>'+
+    const activity='<section class="rdo-section"><h3>Serviços e atividades · '+acts.length+' registros</h3>'+
       renderActivities(row)+'</section>';
     const pictures='<section class="rdo-section"><h3>Relatório fotográfico · '+photos.length+' imagens</h3>'+
       '<div id="rdoDetailPhotos">'+renderPhotoCards(row)+'</div></section>';
@@ -209,21 +214,23 @@
   }
   async function resolvePhotos(row,version){
     const photos=photosOf(row);
-    const missing=Array.from(new Set(photos.map(p=>p.path).filter(path=>validPath(path,"photo"))))
-      .filter(path=>{
-        const obj=state.photoUrls.get(path);
-        return !obj||obj.expires<Date.now()+30000;
-      });
+    const missing=photos.filter(p=>validPath(p.path,"photo")).filter(p=>{
+      const obj=state.photoUrls.get(photoCacheKey(p));
+      return !obj||obj.expires<Date.now()+30000;
+    });
     if(!missing.length)return;
     state.imageErrors=0;
-    for(let offset=0;offset<missing.length;offset+=30){
-      const paths=missing.slice(offset,offset+30);
-      const {data,error}=await state.client.storage.from("obc-fotos").createSignedUrls(paths,900);
-      if(version!==state.selectionVersion)return;
-      if(error){state.imageErrors++;console.warn("RDO image access:",error.message);continue;}
-      for(let i=0;i<paths.length;i++){
-        if(data?.[i]?.signedUrl)state.photoUrls.set(paths[i],{url:data[i].signedUrl,expires:Date.now()+900000});
-        else state.imageErrors++;
+    for(const bucket of ["obc-fotos","obc-rdo-photos"]){
+      const paths=[...new Set(missing.filter(p=>photoBucket(p)===bucket).map(p=>p.path))];
+      for(let offset=0;offset<paths.length;offset+=30){
+        const chunk=paths.slice(offset,offset+30);
+        const {data,error}=await state.client.storage.from(bucket).createSignedUrls(chunk,900);
+        if(version!==state.selectionVersion)return;
+        if(error){state.imageErrors++;console.warn("RDO image access:",error.message);continue;}
+        for(let i=0;i<chunk.length;i++){
+          if(data?.[i]?.signedUrl)state.photoUrls.set(bucket+":"+chunk[i],{url:data[i].signedUrl,expires:Date.now()+900000});
+          else state.imageErrors++;
+        }
       }
     }
     if(version===state.selectionVersion){
@@ -291,7 +298,7 @@
     if(!row)return;
     const item=photosOf(row).find((p,i)=>String(p.photo_id||i)===photoId);
     if(!item)return;
-    const cached=state.photoUrls.get(item.path);
+    const cached=state.photoUrls.get(photoCacheKey(item));
     if(!cached||cached.expires<Date.now())return;
     const modal=$("photoModal");
     if(!modal)return;

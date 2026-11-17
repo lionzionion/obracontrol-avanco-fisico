@@ -1,5 +1,5 @@
 /* RL Engenharia - RDO (Relatorio Diario de Obra)
-   Fonte: apontamentos com work_date e fotos ligadas a esses apontamentos.
+   Fonte: apontamentos e registros manuais independentes; o RDO não altera medições.
    Nunca infere clima, pessoas, equipamentos ou quantidades a partir da aparencia da fotografia.
 */
 (function(){
@@ -49,11 +49,11 @@ function buildDailySnapshot(bridge,date){
  return {activities,photo_manifest:manifest,source_entry_ids:entries.map(e=>e.id),source_generated_at:new Date().toISOString()};
 }
 const mod={
- bridge:null,rows:[],draft:null,current:null,date:localToday(),dirty:false,busy:false,error:'',userId:null,
+ bridge:null,rows:[],draft:null,current:null,date:localToday(),dirty:false,busy:false,uploading:false,manualPhotoUrls:{},manualPhotoExpiry:{},error:'',userId:null,
  get cloud(){return this.bridge?.cloud},
  get state(){return this.bridge?.state},
  get admin(){return this.state?.role==='admin'},
- reset(){this.rows=[];this.draft=null;this.current=null;this.dirty=false;this.userId=null;this.error='';},
+ reset(){this.rows=[];this.draft=null;this.current=null;this.dirty=false;this.uploading=false;this.manualPhotoUrls={};this.manualPhotoExpiry={};this.userId=null;this.error='';},
  init(bridge){
    this.bridge=bridge;
    document.addEventListener('click',ev=>{
@@ -64,7 +64,10 @@ const mod={
      Promise.resolve(this.action(action,btn.dataset.id||'')).catch(err=>this.notice('Falha no RDO: '+err.message,true));
    });
    document.addEventListener('input',ev=>{if(ev.target.closest('#rdoApp'))this.captureInput(ev.target)});
-   document.addEventListener('change',ev=>{if(ev.target.closest('#rdoApp'))this.captureInput(ev.target)});
+   document.addEventListener('change',ev=>{
+     if(ev.target.id==='rdoNewPhotos'){void this.addPhotos(Array.from(ev.target.files||[]));return}
+     if(ev.target.closest('#rdoApp'))this.captureInput(ev.target);
+   });
    document.addEventListener('submit',ev=>{
      if(ev.target.id!=='rdoForm')return;
      ev.preventDefault();void this.saveDraft();
@@ -85,6 +88,12 @@ const mod={
      const k=target.dataset.rdoField;
      if(fields.includes(k)){this.draft[k]=target.value;this.dirty=true}
    }
+   if(target.dataset.rdoActivityField&&target.dataset.rdoActivityId){
+     const a=this.draft.activities.find(x=>x.kind==='manual'&&x.key===target.dataset.rdoActivityId);
+     if(a&&['service','front','responsible','summary'].includes(target.dataset.rdoActivityField)){
+       a[target.dataset.rdoActivityField]=target.value;this.dirty=true;
+     }
+   }
    if(target.dataset.rdoSummary){
      const a=this.draft.activities.find(x=>x.key===target.dataset.rdoSummary);
      if(a){a.summary=target.value;this.dirty=true}
@@ -99,7 +108,7 @@ const mod={
    }
  },
  async action(action,id){
-   if(this.busy)return;
+   if(this.busy||this.uploading)return;
    switch(action){
      case 'load':{
        const date=$('rdoDate')?.value;
@@ -111,6 +120,9 @@ const mod={
        if(this.dirty&&!confirm('Descartar as alterações não salvas e abrir outro RDO?'))return;
        this.loadDate(id);break;
      case 'sync':this.synchronize();break;
+     case 'add-activity':this.addActivity();break;
+     case 'remove-activity':this.removeActivity(id);break;
+     case 'remove-photo':await this.removeManualPhoto(id);break;
      case 'move-up':case 'move-down':this.reorder(id,action==='move-up'?-1:1);break;
      case 'save':await this.saveDraft();break;
      case 'pdf':await this.downloadPdf();break;
@@ -135,24 +147,142 @@ const mod={
    }
    this.dirty=false;
    this.render(true);
+   void this.loadManualPhotoPreviews().catch(err=>this.notice('Falha ao abrir fotos avulsas: '+err.message,true));
  },
  synchronize(){
    if(!this.admin||!this.draft||lockedStatus(this.current?.status))return;
    if(!confirm('Atualizar os serviços e as fotos conforme os lançamentos atuais? As descrições e legendas já editadas serão mantidas.'))return;
    const fresh=buildDailySnapshot(this.bridge,this.draft.work_date);
    const oldActivities=new Map(this.draft.activities.map(a=>[a.key,a]));
-   const oldPhotos=new Map(this.draft.photo_manifest.map(p=>[p.photo_id,p]));
-   this.draft.activities=fresh.activities.map(a=>({...a,summary:oldActivities.get(a.key)?.summary||a.summary}));
-   this.draft.photo_manifest=fresh.photo_manifest.map(p=>({
-     ...p,
-     caption:oldPhotos.get(p.photo_id)?.caption||p.caption,
-     include:oldPhotos.get(p.photo_id)?.include??true,
-     position:oldPhotos.get(p.photo_id)?.position??p.position
-   })).sort((a,b)=>a.position-b.position).map((p,i)=>({...p,position:i}));
+   this.draft.activities=[
+     ...fresh.activities.map(a=>({...a,summary:oldActivities.get(a.key)?.summary||a.summary})),
+     ...this.draft.activities.filter(a=>a.kind==='manual')
+   ];
+   // Preserva fotos avulsas e a ordem já escolhida; remove apenas referências automáticas obsoletas.
+   const remaining=new Map(fresh.photo_manifest.map(p=>[p.photo_id,p]));
+   const photos=[];
+   for(const p of this.draft.photo_manifest){
+     if(p.kind==='manual'){photos.push(p);continue}
+     const incoming=remaining.get(p.photo_id);
+     if(!incoming)continue;
+     photos.push({...incoming,caption:p.caption??incoming.caption,include:p.include??true});
+     remaining.delete(p.photo_id);
+   }
+   photos.push(...remaining.values());
+   this.draft.photo_manifest=photos.map((p,i)=>({...p,position:i}));
    this.draft.source_entry_ids=fresh.source_entry_ids;
    this.draft.source_generated_at=fresh.source_generated_at;
    this.dirty=true;
    this.render(true);this.notice('Serviços, fotos e quantitativos do dia atualizados.');
+ },
+
+ addActivity(){
+   if(!this.admin||!this.draft||lockedStatus(this.current?.status))return;
+   if(this.draft.activities.length>=100)return this.notice('Limite de 100 atividades por RDO.',true);
+   const key='manual:'+crypto.randomUUID();
+   this.draft.activities.push({kind:'manual',key,service:'',summary:'',front:'',responsible:''});
+   this.dirty=true;this.render(true);
+   const input=Array.from(document.querySelectorAll('[data-rdo-activity-field="service"]'))
+     .find(el=>el.dataset.rdoActivityId===key);
+   input?.focus();
+ },
+ removeActivity(key){
+   if(!this.admin||!this.draft||lockedStatus(this.current?.status))return;
+   const activity=this.draft.activities.find(a=>a.key===key&&a.kind==='manual');
+   if(!activity||!confirm('Remover esta atividade avulsa do RDO?'))return;
+   this.draft.activities=this.draft.activities.filter(a=>a!==activity);
+   this.dirty=true;this.render(true);
+ },
+ async compressRdoPhoto(file){
+   if(!file?.type?.startsWith('image/'))throw Error('Selecione apenas arquivos de imagem.');
+   if(file.size>12*1024*1024)throw Error('A foto '+file.name+' excede 12 MB.');
+   const url=URL.createObjectURL(file);
+   try{
+     const image=new Image();
+     await new Promise((resolve,reject)=>{
+       image.onload=resolve;image.onerror=()=>reject(Error('Imagem inválida ou não compatível: '+file.name));image.src=url;
+     });
+     const factor=Math.min(1,1600/Math.max(image.width,image.height));
+     const canvas=document.createElement('canvas');
+     canvas.width=Math.max(1,Math.round(image.width*factor));
+     canvas.height=Math.max(1,Math.round(image.height*factor));
+     const ctx=canvas.getContext('2d');
+     if(!ctx)throw Error('Falha ao processar a imagem.');
+     ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+     ctx.drawImage(image,0,0,canvas.width,canvas.height);
+     const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.78));
+     if(!blob||blob.size>4*1024*1024)throw Error('Não foi possível reduzir a foto '+file.name+' a 4 MB.');
+     return blob;
+   }finally{URL.revokeObjectURL(url)}
+ },
+ async loadManualPhotoPreviews(){
+   if(!this.draft||!this.cloud)return;
+   const date=this.draft.work_date;
+   const paths=[...new Set(this.draft.photo_manifest.filter(p=>p.kind==='manual'&&p.path)
+     .map(p=>p.path))].filter(path=>!this.manualPhotoUrls[path]||this.manualPhotoExpiry[path]<Date.now()+30000);
+   if(!paths.length)return;
+   const {data,error}=await this.cloud.storage.from('obc-rdo-photos').createSignedUrls(paths,3600);
+   if(error){this.notice('Não foi possível carregar as miniaturas das fotos avulsas: '+error.message,true);return}
+   if(this.draft?.work_date!==date)return;
+   (data||[]).forEach((signed,i)=>{if(signed?.signedUrl){this.manualPhotoUrls[paths[i]]=signed.signedUrl;this.manualPhotoExpiry[paths[i]]=Date.now()+3600000}});
+   this.render(true);
+ },
+ async addPhotos(files){
+   if(!this.admin||!this.draft||lockedStatus(this.current?.status)||this.busy||this.uploading||!files.length)return;
+   if(files.length>12)return this.notice('Selecione no máximo 12 fotos por envio.',true);
+   if(this.draft.photo_manifest.length+files.length>50)return this.notice('O RDO admite até 50 fotos.',true);
+   this.uploading=true;
+   const uploaded=[],failures=[];
+   let persisted=false;
+   try{
+     if((!this.current||this.dirty)&&!await this.saveDraft({silent:true}))return;
+     for(const file of files){
+       try{
+         const blob=await this.compressRdoPhoto(file),id=crypto.randomUUID();
+         const path=this.state.user.id+'/'+this.current.id+'/'+id+'.jpg';
+         const {error}=await this.cloud.storage.from('obc-rdo-photos')
+           .upload(path,blob,{contentType:'image/jpeg',upsert:false});
+         if(error)throw error;
+         uploaded.push({kind:'manual',photo_id:id,path,source_name:file.name.slice(0,140),
+           caption:'Registro fotográfico da obra.',include:true,
+           position:this.draft.photo_manifest.length+uploaded.length});
+       }catch(err){failures.push(file.name+': '+(err.message||err))}
+     }
+     if(!uploaded.length)throw Error(failures.join(' | ')||'Nenhuma foto pôde ser enviada.');
+     this.draft.photo_manifest.push(...uploaded);
+     this.dirty=true;
+     if(!await this.saveDraft({silent:true}))throw Error('As fotos chegaram ao armazenamento, mas o RDO não pôde ser salvo.');
+     persisted=true;
+     await this.loadManualPhotoPreviews();
+     this.notice(uploaded.length+' foto(s) adicionada(s) ao RDO.'+
+       (failures.length?' Não enviadas: '+failures.join(' | '):''),!!failures.length);
+   }catch(err){
+     if(!persisted&&uploaded.length){
+       await this.cloud.storage.from('obc-rdo-photos').remove(uploaded.map(p=>p.path));
+       this.draft.photo_manifest=this.draft.photo_manifest.filter(p=>!uploaded.some(u=>u.photo_id===p.photo_id));
+       this.dirty=false;this.render(true);
+     }
+     this.notice('Erro ao adicionar fotos: '+(err.message||err),true);
+   }finally{this.uploading=false;this.render(true)}
+ },
+ async removeManualPhoto(id){
+   if(!this.admin||!this.draft||lockedStatus(this.current?.status))return;
+   const photo=this.draft.photo_manifest.find(p=>p.photo_id===id&&p.kind==='manual');
+   if(!photo||!confirm('Remover esta foto do RDO? A imagem será excluída do armazenamento.'))return;
+   this.uploading=true;
+   try{
+     if(this.dirty&&!await this.saveDraft({silent:true}))return;
+     const before=this.draft.photo_manifest;
+     this.draft.photo_manifest=before.filter(p=>p.photo_id!==id).map((p,i)=>({...p,position:i}));
+     this.dirty=true;
+     if(!await this.saveDraft({silent:true})){
+       this.draft.photo_manifest=before;this.dirty=false;this.render(true);return;
+     }
+     const {error}=await this.cloud.storage.from('obc-rdo-photos').remove([photo.path]);
+     delete this.manualPhotoUrls[photo.path];delete this.manualPhotoExpiry[photo.path];
+     if(error)this.notice('Foto removida do RDO, mas o arquivo requer limpeza: '+error.message,true);
+     else this.notice('Foto avulsa removida do RDO.');
+   }finally{this.uploading=false;this.render(true)}
  },
  reorder(id,step){
    if(!this.admin||!this.draft||lockedStatus(this.current?.status))return;
@@ -171,11 +301,11 @@ const mod={
    const waitingCount=this.rows.filter(x=>x.status==='submitted').length;
    const approvedCount=this.rows.filter(x=>['approved','final'].includes(x.status)).length;
    const records=this.bridge.state.entries.filter(e=>e.date===this.date);
-   const photoCount=(this.bridge.state.photos||[]).filter(p=>records.some(e=>e.id===p.entryId)).length;
+   const photoCount=this.draft?.work_date===this.date?this.draft.photo_manifest.length:(this.bridge.state.photos||[]).filter(p=>records.some(e=>e.id===p.entryId)).length;
    const dateInput='<input id="rdoDate" class="input" type="date" value="'+esc(this.date)+'">';
-   const top='<div class="rdo-stats"><div><small>RDOs aprovados</small><strong>'+approvedCount+'</strong></div><div><small>Aguardando análise</small><strong>'+waitingCount+'</strong></div><div><small>Fotos na data</small><strong>'+photoCount+'</strong></div></div>'+
+   const top='<div class="rdo-stats"><div><small>RDOs aprovados</small><strong>'+approvedCount+'</strong></div><div><small>Aguardando análise</small><strong>'+waitingCount+'</strong></div><div><small>Fotos no RDO</small><strong>'+photoCount+'</strong></div></div>'+
     '<div class="rdo-picker"><label>Data de referência do RDO '+dateInput+'</label><button type="button" class="btn primary" data-rdo-action="load">Abrir dia</button></div>'+
-    '<div class="note">Os serviços e volumes vêm dos lançamentos de <strong>produção</strong> do dia. As fotos são reunidas pela <strong>data de execução do apontamento ao qual estão vinculadas</strong>, mesmo se enviadas posteriormente. Equipe, clima e equipamentos exigem conferência manual.</div>';
+    '<div class="note">O RDO reúne lançamentos de <strong>produção</strong> e também aceita <strong>atividades e fotos avulsas</strong>, sem gerar quantitativos ou medições. As fotos dos lançamentos continuam vinculadas à data de execução. Equipe, clima e equipamentos exigem conferência manual.</div>';
    if(!this.draft)this.loadDate(this.date);
    const d=this.draft||draftDefaults(this.date);
    const locked=readonly?'disabled':'';
@@ -208,22 +338,32 @@ const mod={
       :'<input class="input" data-rdo-field="'+name+'" value="'+esc(d[name]||'')+'" placeholder="'+esc(hint)+'" '+locked+'>';
      return '<label class="rdo-field '+(big?'wide':'')+'"><span>'+esc(title)+'</span>'+fld+'</label>';
    }).join('');
-   const activityHTML=d.activities.length?d.activities.map(a=>'<div class="rdo-activity">'+
+   const activityHTML=d.activities.length?d.activities.map(a=>a.kind==='manual'
+     ?'<div class="rdo-activity rdo-manual-activity">'+
+       '<div class="rdo-activity-head"><strong>Atividade adicional (sem vínculo com medição)</strong>'+
+       (readonly?'':'<button type="button" class="btn rdo-remove-btn" data-rdo-action="remove-activity" data-id="'+esc(a.key)+'">Remover</button>')+'</div>'+
+       '<label>Título da atividade<input class="input" maxlength="180" placeholder="Ex.: Inspeção da frente de serviço" data-rdo-activity-field="service" data-rdo-activity-id="'+esc(a.key)+'" value="'+esc(a.service||'')+'" '+locked+'></label>'+
+       '<div class="rdo-manual-grid"><label>Frente / local (opcional)<input class="input" maxlength="120" data-rdo-activity-field="front" data-rdo-activity-id="'+esc(a.key)+'" value="'+esc(a.front||'')+'" '+locked+'></label>'+
+       '<label>Responsável (opcional)<input class="input" maxlength="120" data-rdo-activity-field="responsible" data-rdo-activity-id="'+esc(a.key)+'" value="'+esc(a.responsible||'')+'" '+locked+'></label></div>'+
+       '<label>Descrição da atividade<textarea class="textarea" rows="2" maxlength="2500" placeholder="Descreva o que ocorreu, sem lançar quantidades na medição" data-rdo-activity-field="summary" data-rdo-activity-id="'+esc(a.key)+'" '+locked+'>'+esc(a.summary||'')+'</textarea></label></div>'
+     :'<div class="rdo-activity">'+
      '<div class="rdo-activity-head"><strong>'+esc(a.code)+' — '+esc(a.service)+'</strong><span>'+nf(a.qty)+' '+esc(a.unit)+'</span></div>'+
      '<small>'+esc(a.contract==='gabioes'?'Gabiões e drenagem':'Demolição e terraplenagem')+
      (a.front?' · Frente: '+esc(a.front):'')+(a.responsibles?.length?' · '+esc(a.responsibles.join(', ')):'')+'</small>'+
      '<label>Descrição técnica / ocorrências deste serviço<textarea class="textarea" rows="2" data-rdo-summary="'+esc(a.key)+'" '+locked+'>'+esc(a.summary||'')+'</textarea></label></div>').join('')
-    :'<div class="empty"><b>Nenhuma produção lançada nesta data</b>Você pode registrar um RDO de paralisação e preencher as observações manualmente, sem inventar serviços executados.</div>';
+    :'<div class="empty"><b>Nenhum serviço neste RDO</b>Adicione uma atividade avulsa, mesmo sem lançamento de produção, ou registre ocorrências e observações.</div>';
    const photoHTML=d.photo_manifest.length?d.photo_manifest.map((p,i)=>{
      const record=this.bridge.state.photos.find(x=>x.id===p.photo_id);
+     const preview=p.kind==='manual'?this.manualPhotoUrls[p.path]:record?.dataUrl;
      return '<div class="rdo-photo">'+
-       '<div class="rdo-photo-visual">'+(record?.dataUrl?'<img src="'+esc(record.dataUrl)+'" loading="lazy" alt="'+esc(p.source_name||'Fotografia da obra')+'">':'<div class="rdo-missing">Imagem indisponível</div>')+'</div>'+
+       '<div class="rdo-photo-visual">'+(preview?'<img src="'+esc(preview)+'" loading="lazy" alt="'+esc(p.source_name||'Fotografia da obra')+'">':'<div class="rdo-missing">Imagem indisponível</div>')+'</div>'+
        '<div class="rdo-photo-content"><label class="rdo-select"><input type="checkbox" data-rdo-include="'+esc(p.photo_id)+'" '+(p.include?'checked':'')+' '+locked+'> Incluir no PDF</label>'+
-       '<small>Foto '+(i+1)+' · '+esc(p.source_name||'Arquivo sem nome')+'</small>'+
+       '<small>Foto '+(i+1)+(p.kind==='manual'?' · Adicionada diretamente ao RDO':' · Foto de produção')+' · '+esc(p.source_name||'Arquivo sem nome')+'</small>'+
        '<label>Legenda<textarea class="textarea" rows="2" data-rdo-caption="'+esc(p.photo_id)+'" '+locked+'>'+esc(p.caption||'')+'</textarea></label>'+
        (readonly?'':'<div class="rdo-order"><button type="button" class="btn" data-rdo-action="move-up" data-id="'+esc(p.photo_id)+'" '+(i===0?'disabled':'')+'>↑ Subir</button><button type="button" class="btn" data-rdo-action="move-down" data-id="'+esc(p.photo_id)+'" '+(i===d.photo_manifest.length-1?'disabled':'')+'>↓ Descer</button></div>')+
+       (!readonly&&p.kind==='manual'?'<button type="button" class="btn rdo-remove-btn" data-rdo-action="remove-photo" data-id="'+esc(p.photo_id)+'">Remover foto avulsa</button>':'')+
        '</div></div>';
-   }).join(''):'<div class="empty"><b>Sem fotos vinculadas aos lançamentos desta data</b>Cadastre imagens na tela Lançar produção e depois use Atualizar registros do dia.</div>';
+   }).join(''):'<div class="empty"><b>Sem fotos neste RDO</b>Envie fotos diretamente aqui ou use as fotos dos apontamentos do dia.</div>';
    const history=this.rows.slice(0,45).map(r=>'<div class="rdo-history-row"><div><strong>'+esc(seq(r))+' · '+dateBR(r.work_date)+'</strong><small>'+esc(statusLabels[r.status]||r.status)+(r.approved_name?' · Aprovado por '+esc(r.approved_name)+' em '+whenBR(r.approved_at):'')+'</small></div>'+
     '<div class="rdo-history-actions"><button type="button" class="btn" data-rdo-action="open" data-id="'+esc(r.work_date)+'">Abrir</button><button type="button" class="btn" data-rdo-action="history-pdf" data-id="'+esc(r.id)+'">PDF</button></div></div>').join('')||'<div class="helpText">Nenhum RDO salvo nesta obra ainda.</div>';
    const buttons='<div class="rdo-actions">'+
@@ -233,9 +373,11 @@ const mod={
      (isAdmin&&approved&&!this.current?.pdf_path?'<button type="button" class="btn rdo-final-btn" data-rdo-action="archive">Arquivar PDF aprovado</button>':'')+
      '</div>';
    const editor='<article class="panel rdo-editor"><div class="rdo-editor-title"><div class="rdo-heading-with-logo"><img class="rdo-head-logo" src="./assets/rl-logo.svg" alt="Logomarca RL Engenharia — Fazendo Acontecer"><div><h2>'+esc(this.current?seq(this.current):'Novo RDO')+' · '+dateBR(d.work_date)+'</h2><small>AMBEV Itapissuma — Relatório Diário de Obra</small></div></div>'+draftStatus+'</div>'+
-      '<form id="rdoForm"><h3>01. Serviços e produção registrados</h3><div class="rdo-activities">'+activityHTML+'</div>'+
+      '<form id="rdoForm"><h3>01. Serviços e atividades do dia</h3><div class="rdo-activities">'+activityHTML+'</div>'+
+      (readonly?'':'<div class="rdo-section-actions"><button type="button" class="btn rdo-add-btn" data-rdo-action="add-activity">+ Adicionar atividade avulsa</button><small>Sem vínculo com itens contratuais, avanço físico ou medições.</small></div>')+
       '<h3>02. Informações do dia (revisão do engenheiro)</h3><div class="rdo-fields">'+fieldHTML+'</div>'+
-      '<h3>03. Relatório fotográfico <span class="rdo-counter">'+d.photo_manifest.filter(p=>p.include).length+' selecionadas</span></h3>'+
+      '<h3>03. Relatório fotográfico <span class="rdo-counter">'+d.photo_manifest.filter(p=>p.include).length+' selecionadas</span></h3>'+ 
+      (readonly?'':'<div class="rdo-upload-panel"><label for="rdoNewPhotos"><strong>Adicionar fotos diretamente ao RDO</strong><small>Não é necessário escolher um item ou fazer lançamento de produção. Até 12 fotos por envio (máximo 50 no RDO).</small></label><input id="rdoNewPhotos" type="file" class="input" accept="image/*" multiple '+(this.uploading?'disabled':'')+'></div>')+
       '<div class="rdo-photos">'+photoHTML+'</div>'+approvalDetails+buttons+
       '<p class="helpText">PDF A4 com logomarca RL, serviços e fotos reais. Após o envio, o administrador aprova ou devolve para ajustes. Nome, cargo e horário são registrados no servidor. O registro não constitui assinatura digital.</p></form></article>';
    root.innerHTML=(this.error?'<div class="rdo-alert">'+esc(this.error)+'</div>':'')+top+editor+
@@ -244,6 +386,9 @@ const mod={
  async saveDraft({silent=false}={}){
    if(!this.admin||lockedStatus(this.current?.status))return false;
    if(!this.draft||this.busy)return false;
+   if(this.draft.activities.some(a=>a.kind==='manual'&&!String(a.service||'').trim())){
+     this.notice('Preencha o título de cada atividade avulsa antes de salvar.',true);return false;
+   }
    this.busy=true;
    try{
      const data=this.payload(this.current?.status==='returned'?'returned':'draft');
@@ -290,6 +435,7 @@ const mod={
  async submitForApproval(){
    if(!this.admin||!this.draft||lockedStatus(this.current?.status)||this.busy)return;
    if(!this.draft.engineer_name?.trim())return this.notice('Informe o engenheiro que elaborou o RDO antes de enviar.',true);
+   if(this.draft.activities.some(a=>a.kind==='manual'&&!String(a.service||'').trim()))return this.notice('Informe o título das atividades avulsas.',true);
    if(!this.draft.activities?.length&&!this.draft.occurrences?.trim()&&!this.draft.general_notes?.trim())
      return this.notice('Inclua serviços, ocorrências ou observações para justificar o diário.',true);
    if(!confirm('Enviar o RDO de '+dateBR(this.draft.work_date)+' para aprovação? Os campos ficarão bloqueados até a decisão.'))return;
@@ -418,7 +564,8 @@ const mod={
  async photoJpeg(photo){
    const path=photo.path||this.bridge.state.photos.find(p=>p.id===photo.photo_id)?.path;
    if(!path)throw Error('Caminho da foto não encontrado: '+photo.source_name);
-   const {data:blob,error}=await this.cloud.storage.from('obc-fotos').download(path);
+   const bucket=photo.kind==='manual'?'obc-rdo-photos':'obc-fotos';
+   const {data:blob,error}=await this.cloud.storage.from(bucket).download(path);
    if(error)throw Error('Não foi possível obter a foto '+photo.source_name+': '+error.message);
    const u=URL.createObjectURL(blob);
    try{
@@ -487,13 +634,19 @@ const mod={
    for(const a of d.activities){
      space(17);
      pdf.setFont('helvetica','bold');pdf.setFontSize(9.4);pdf.setTextColor(20,78,92);
-     const text=a.code+' - '+a.service;
+     const text=a.kind==='manual'?'ATIVIDADE ADICIONAL - '+a.service:a.code+' - '+a.service;
      const lines=pdf.splitTextToSize(text,CW-4);
      for(const line of lines){space(5.1);pdf.text(line,L,y);y+=4.9}
      pdf.setFontSize(8.6);pdf.setTextColor(28,42,58);
-     paragraph('Quantidade executada: '+nf(a.qty)+' '+a.unit+(a.front?'   |   Frente: '+a.front:''),8.6,4.2);
-     paragraph(a.summary||'Sem observacoes deste servico.',8.7,4.3,[61,72,83]);
-     if(a.responsibles?.length)paragraph('Apontado por: '+a.responsibles.join(', '),8,4,[83,101,114]);
+     if(a.kind==='manual'){
+       if(a.front)paragraph('Frente / local: '+a.front,8.6,4.2);
+       paragraph(a.summary||'Sem descricao adicional.',8.7,4.3,[61,72,83]);
+       if(a.responsible)paragraph('Responsavel: '+a.responsible,8,4,[83,101,114]);
+     }else{
+       paragraph('Quantidade executada: '+nf(a.qty)+' '+a.unit+(a.front?'   |   Frente: '+a.front:''),8.6,4.2);
+       paragraph(a.summary||'Sem observacoes deste servico.',8.7,4.3,[61,72,83]);
+       if(a.responsibles?.length)paragraph('Apontado por: '+a.responsibles.join(', '),8,4,[83,101,114]);
+     }
      y+=1;
    }
    ruleTitle('02. RECURSOS / CONDICOES DE TRABALHO');
