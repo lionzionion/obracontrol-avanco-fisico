@@ -49,11 +49,11 @@ function buildDailySnapshot(bridge,date){
  return {activities,photo_manifest:manifest,source_entry_ids:entries.map(e=>e.id),source_generated_at:new Date().toISOString()};
 }
 const mod={
- bridge:null,rows:[],draft:null,current:null,date:localToday(),dirty:false,busy:false,uploading:false,manualPhotoUrls:{},manualPhotoExpiry:{},error:'',userId:null,
+ bridge:null,rows:[],draft:null,current:null,date:localToday(),dirty:false,busy:false,uploading:false,manualPhotoUrls:{},manualPhotoExpiry:{},serverSnapshot:null,error:'',userId:null,
  get cloud(){return this.bridge?.cloud},
  get state(){return this.bridge?.state},
  get admin(){return this.state?.role==='admin'},
- reset(){this.rows=[];this.draft=null;this.current=null;this.dirty=false;this.uploading=false;this.manualPhotoUrls={};this.manualPhotoExpiry={};this.userId=null;this.error='';},
+ reset(){this.rows=[];this.draft=null;this.current=null;this.dirty=false;this.uploading=false;this.manualPhotoUrls={};this.manualPhotoExpiry={};this.serverSnapshot=null;this.userId=null;this.error='';},
  init(bridge){
    this.bridge=bridge;
    document.addEventListener('click',ev=>{
@@ -81,7 +81,6 @@ const mod={
    this.rows=data||[];this.error='';
    if(this.current){const updated=this.rows.find(x=>x.id===this.current.id);if(updated&&!this.dirty){
      this.current=updated;this.draft={...draftDefaults(updated.work_date),...structuredClone(updated)};
-     if(this.admin&&!lockedStatus(updated.status))this.applySnapshot(buildDailySnapshot(this.bridge,updated.work_date));
    }}
  },
  captureInput(target){
@@ -150,15 +149,27 @@ const mod={
      this.draft={...draftDefaults(date),...buildDailySnapshot(this.bridge,date)};
    }
    this.dirty=false;
-   if(this.admin&&!lockedStatus(this.current?.status)){
-     const local=buildDailySnapshot(this.bridge,date);
-     const changes=this.applySnapshot(local);
-     if(changes.any)this.notice('Novos registros de produção/fotos incluídos na prévia. Confira e salve o RDO.');
-   }
+   this.serverSnapshot=null;
    this.render(true);
+   // A origem é consultada na nuvem: o cache local pode estar desatualizado
+   // mesmo depois de abrir o RDO.
+   void this.refreshOpenedSnapshot(date,this.current?.id||null)
+     .catch(err=>this.notice('Não foi possível verificar fotos e lançamentos recentes: '+err.message,true));
    void this.loadManualPhotoPreviews().catch(err=>this.notice('Falha ao abrir fotos avulsas: '+err.message,true));
  },
 
+ async refreshOpenedSnapshot(date,rdoId){
+   if(!this.draft||this.draft.work_date!==date)return;
+   const latest=await this.latestSnapshot();
+   if(!this.draft||this.draft.work_date!==date||this.date!==date||
+      (this.current?.id||null)!==rdoId||this.busy||this.uploading)return;
+   this.serverSnapshot={date,rdoId,snapshot:latest.snapshot};
+   if(this.admin&&!lockedStatus(this.current?.status)){
+     const changes=this.applySnapshot(latest.snapshot);
+     if(changes.any)this.notice('Novos lançamentos e fotos incluídos no editor. Confira e salve o rascunho.');
+   }
+   this.render(true);
+ },
  inspectSnapshot(fresh){
    const d=this.draft||{activities:[],photo_manifest:[],source_entry_ids:[]};
    const oldEntries=new Set(Array.isArray(d.source_entry_ids)?d.source_entry_ids:[]);
@@ -244,6 +255,7 @@ const mod={
    try{
      const latest=await this.latestSnapshot();
      const changes=this.applySnapshot(latest.snapshot);
+     this.serverSnapshot={date:this.draft.work_date,rdoId:this.current?.id||null,snapshot:latest.snapshot};
      this.render(true);
      this.notice(changes.any?'Registros sincronizados. Confira as atividades e fotos e clique em Salvar rascunho.':
        'RDO já está atualizado com os lançamentos e fotos do dia.');
@@ -383,7 +395,9 @@ const mod={
    if(!this.draft)this.loadDate(this.date);
    const d=this.draft||draftDefaults(this.date);
    const locked=readonly?'disabled':'';
-   const latestLocal=buildDailySnapshot(this.bridge,d.work_date);
+   const latestLocal=this.serverSnapshot?.date===d.work_date&&
+     this.serverSnapshot.rdoId===(this.current?.id||null)
+     ?this.serverSnapshot.snapshot:buildDailySnapshot(this.bridge,d.work_date);
    const gap=this.current?this.inspectSnapshot(latestLocal):null;
    const gapLabel=gap?
      [gap.missingEntries.length+' lançamento(s) novo(s)',
@@ -487,6 +501,7 @@ const mod={
    try{
      const latest=await this.latestSnapshot();
      const changes=this.applySnapshot(latest.snapshot);
+     this.serverSnapshot={date:this.draft.work_date,rdoId:this.current?.id||null,snapshot:latest.snapshot};
      if(changes.any)this.render(true);
      const data=this.payload(this.current?.status==='returned'?'returned':'draft');
      let response;
