@@ -49,11 +49,11 @@ function buildDailySnapshot(bridge,date){
  return {activities,photo_manifest:manifest,source_entry_ids:entries.map(e=>e.id),source_generated_at:new Date().toISOString()};
 }
 const mod={
- bridge:null,rows:[],draft:null,current:null,date:localToday(),dirty:false,busy:false,uploading:false,manualPhotoUrls:{},error:'',userId:null,
+ bridge:null,rows:[],draft:null,current:null,date:localToday(),dirty:false,busy:false,uploading:false,manualPhotoUrls:{},manualPhotoExpiry:{},error:'',userId:null,
  get cloud(){return this.bridge?.cloud},
  get state(){return this.bridge?.state},
  get admin(){return this.state?.role==='admin'},
- reset(){this.rows=[];this.draft=null;this.current=null;this.dirty=false;this.uploading=false;this.manualPhotoUrls={};this.userId=null;this.error='';},
+ reset(){this.rows=[];this.draft=null;this.current=null;this.dirty=false;this.uploading=false;this.manualPhotoUrls={};this.manualPhotoExpiry={};this.userId=null;this.error='';},
  init(bridge){
    this.bridge=bridge;
    document.addEventListener('click',ev=>{
@@ -219,12 +219,12 @@ const mod={
    if(!this.draft||!this.cloud)return;
    const date=this.draft.work_date;
    const paths=[...new Set(this.draft.photo_manifest.filter(p=>p.kind==='manual'&&p.path)
-     .map(p=>p.path))].filter(path=>!this.manualPhotoUrls[path]);
+     .map(p=>p.path))].filter(path=>!this.manualPhotoUrls[path]||this.manualPhotoExpiry[path]<Date.now()+30000);
    if(!paths.length)return;
    const {data,error}=await this.cloud.storage.from('obc-rdo-photos').createSignedUrls(paths,3600);
    if(error){this.notice('Não foi possível carregar as miniaturas das fotos avulsas: '+error.message,true);return}
    if(this.draft?.work_date!==date)return;
-   (data||[]).forEach((signed,i)=>{if(signed?.signedUrl)this.manualPhotoUrls[paths[i]]=signed.signedUrl});
+   (data||[]).forEach((signed,i)=>{if(signed?.signedUrl){this.manualPhotoUrls[paths[i]]=signed.signedUrl;this.manualPhotoExpiry[paths[i]]=Date.now()+3600000}});
    this.render(true);
  },
  async addPhotos(files){
@@ -263,7 +263,7 @@ const mod={
        this.dirty=false;this.render(true);
      }
      this.notice('Erro ao adicionar fotos: '+(err.message||err),true);
-   }finally{this.uploading=false}
+   }finally{this.uploading=false;this.render(true)}
  },
  async removeManualPhoto(id){
    if(!this.admin||!this.draft||lockedStatus(this.current?.status))return;
@@ -279,10 +279,10 @@ const mod={
        this.draft.photo_manifest=before;this.dirty=false;this.render(true);return;
      }
      const {error}=await this.cloud.storage.from('obc-rdo-photos').remove([photo.path]);
-     delete this.manualPhotoUrls[photo.path];
+     delete this.manualPhotoUrls[photo.path];delete this.manualPhotoExpiry[photo.path];
      if(error)this.notice('Foto removida do RDO, mas o arquivo requer limpeza: '+error.message,true);
      else this.notice('Foto avulsa removida do RDO.');
-   }finally{this.uploading=false}
+   }finally{this.uploading=false;this.render(true)}
  },
  reorder(id,step){
    if(!this.admin||!this.draft||lockedStatus(this.current?.status))return;
