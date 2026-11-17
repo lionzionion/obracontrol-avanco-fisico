@@ -383,6 +383,26 @@ const mod={
    if(!this.draft)this.loadDate(this.date);
    const d=this.draft||draftDefaults(this.date);
    const locked=readonly?'disabled':'';
+   const latestLocal=buildDailySnapshot(this.bridge,d.work_date);
+   const gap=this.current?this.inspectSnapshot(latestLocal):null;
+   const gapLabel=gap?
+     [gap.missingEntries.length+' lançamento(s) novo(s)',
+      gap.missingPhotos.length+' foto(s) nova(s)',
+      gap.changedActivities.length+' serviço(s) diferente(s)'].join(' · '):'';
+   const staleNotice=gap?.any&&this.current?.status==='approved'
+     ?'<div class="rdo-outdated"><strong>⚠ RDO aprovado com registros posteriores não incluídos</strong>'+
+       '<p>Foram identificados '+esc(gapLabel)+'. O PDF aprovado original permanece intacto. Baixe um complemento para conferência; esse documento complementar não representa nova aprovação.</p>'+
+       '<button type="button" class="btn primary" data-rdo-action="supplement-pdf">Baixar PDF complementar com atividades e fotos faltantes</button></div>'
+     :gap?.any&&this.current?.status==='submitted'
+     ?'<div class="rdo-outdated"><strong>⚠ Novos registros após o envio</strong><p>'+esc(gapLabel)+'. Devolva este RDO para ajuste antes de aprová-lo.</p></div>'
+     :gap?.any&&this.current?.status==='final'
+     ?'<div class="rdo-outdated"><strong>⚠ RDO legado arquivado com diferenças nos apontamentos</strong><p>O original está protegido contra alterações.</p></div>'
+     :'';
+   const syncNotice=this.current&&!readonly&&this.dirty&&
+     (JSON.stringify(this.draft.source_entry_ids)!==JSON.stringify(this.current.source_entry_ids)||
+      this.draft.photo_manifest.some(p=>!this.current.photo_manifest?.some(q=>q.photo_id===p.photo_id)))
+     ?'<div class="rdo-sync-notice">Novas atividades ou fotos foram incorporadas ao editor. Confira as informações e clique em <strong>Salvar rascunho</strong>.</div>':'';
+
    const draftStatus='<span class="rdo-pill '+(approved||state==='final'?'final':submitted?'pending':returned?'returned':'draft')+'">'+esc(this.current?statusLabels[state]||state:'Novo rascunho')+'</span>';
    const historyEvents=(Array.isArray(d.approval_history)?d.approval_history:[]).slice(-10);
    const approvalDetails='<section class="rdo-approval-panel"><h3>Fluxo de aprovação</h3>'+
@@ -446,7 +466,7 @@ const mod={
      (isAdmin&&submitted?'<button type="button" class="btn rdo-final-btn" data-rdo-action="approve">✓ Aprovar RDO</button><button type="button" class="btn rdo-return-btn" data-rdo-action="return">↶ Devolver para ajuste</button>':'')+
      (isAdmin&&approved&&!this.current?.pdf_path?'<button type="button" class="btn rdo-final-btn" data-rdo-action="archive">Arquivar PDF aprovado</button>':'')+
      '</div>';
-   const editor='<article class="panel rdo-editor"><div class="rdo-editor-title"><div class="rdo-heading-with-logo"><img class="rdo-head-logo" src="./assets/rl-logo.svg" alt="Logomarca RL Engenharia — Fazendo Acontecer"><div><h2>'+esc(this.current?seq(this.current):'Novo RDO')+' · '+dateBR(d.work_date)+'</h2><small>AMBEV Itapissuma — Relatório Diário de Obra</small></div></div>'+draftStatus+'</div>'+
+   const editor=staleNotice+syncNotice+'<article class="panel rdo-editor"><div class="rdo-editor-title"><div class="rdo-heading-with-logo"><img class="rdo-head-logo" src="./assets/rl-logo.svg" alt="Logomarca RL Engenharia — Fazendo Acontecer"><div><h2>'+esc(this.current?seq(this.current):'Novo RDO')+' · '+dateBR(d.work_date)+'</h2><small>AMBEV Itapissuma — Relatório Diário de Obra</small></div></div>'+draftStatus+'</div>'+
       '<form id="rdoForm"><h3>01. Serviços e atividades do dia</h3><div class="rdo-activities">'+activityHTML+'</div>'+
       (readonly?'':'<div class="rdo-section-actions"><button type="button" class="btn rdo-add-btn" data-rdo-action="add-activity">+ Adicionar atividade avulsa</button><small>Sem vínculo com itens contratuais, avanço físico ou medições.</small></div>')+
       '<h3>02. Informações do dia (revisão do engenheiro)</h3><div class="rdo-fields">'+fieldHTML+'</div>'+
@@ -584,6 +604,92 @@ const mod={
      if(path)await this.cloud.storage.from('obc-rdo-pdfs').remove([path]);
      this.notice('A aprovação ficou registrada, mas o PDF ainda não foi arquivado: '+err.message+'. Use Arquivar PDF aprovado para tentar novamente.',true);
    }finally{this.busy=false}
+ },
+
+ async downloadSupplementPdf(){
+   if(this.busy||this.current?.status!=='approved'||!this.draft)return;
+   this.busy=true;
+   try{
+     const latest=await this.latestSnapshot();
+     const delta=this.inspectSnapshot(latest.snapshot);
+     if(!delta.any)return this.notice('Não há novos registros para complementar este RDO.');
+     const JsPDF=await this.ensureJsPdf(),logo=await this.brandLogoPng();
+     const pdf=new JsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true});
+     const PAGE_W=210,PAGE_H=297,LEFT=15,RIGHT=15,CONTENT=PAGE_W-LEFT-RIGHT;
+     let y=43;
+     const header=()=>{
+       pdf.setFillColor(11,35,58);pdf.rect(0,0,PAGE_W,34,'F');
+       pdf.addImage(logo,'PNG',13,5,60,17.6,undefined,'FAST');
+       pdf.setTextColor(245,250,254);pdf.setFont('helvetica','bold');pdf.setFontSize(10);
+       pdf.text('COMPLEMENTO DO RELATORIO DIARIO',81,14.5);
+       pdf.setFontSize(8);pdf.setFont('helvetica','normal');
+       pdf.text(seq(this.current)+' | '+dateBR(this.current.work_date),81,21);
+       pdf.setFillColor(127,58,39);pdf.roundedRect(159,26.1,36,5.5,1.2,1.2,'F');
+       pdf.setTextColor(255,238,227);pdf.setFont('helvetica','bold');pdf.setFontSize(7);
+       pdf.text('NAO APROVADO',177,30,{align:'center'});
+       pdf.setTextColor(39,55,67);y=42;
+     };
+     const newPage=()=>{pdf.addPage();header()};
+     const ensure=h=>{if(y+h>PAGE_H-23)newPage()};
+     const paragraph=(value,size=9,leading=4.5)=>{
+       pdf.setFont('helvetica','normal');pdf.setFontSize(size);pdf.setTextColor(46,60,72);
+       const lines=pdf.splitTextToSize(String(value||'Sem observacoes'),CONTENT);
+       for(const line of lines){ensure(leading+1);pdf.text(line,LEFT,y);y+=leading}
+       y+=3;
+     };
+     const heading=value=>{
+       ensure(17);pdf.setFillColor(232,240,246);pdf.roundedRect(LEFT,y,CONTENT,9,1.4,1.4,'F');
+       pdf.setTextColor(25,64,84);pdf.setFont('helvetica','bold');pdf.setFontSize(10);
+       pdf.text(value,LEFT+3,y+6);y+=14;
+     };
+     header();
+     paragraph('DOCUMENTO COMPLEMENTAR PARA CONFERENCIA. Nao altera o RDO aprovado nem substitui o PDF original. Requer analise e aprovacao especifica para adquirir valor formal.',9,5);
+     paragraph('Data da extracao: '+new Date().toLocaleString('pt-BR',{timeZone:'America/Recife'})+
+       ' | RDO original aprovado em: '+whenBR(this.current.approved_at),8.5,4.2);
+     paragraph('Motivo: apontamentos de producao ou fotografias da data nao incorporados ao manifesto do documento original.',8.5,4.2);
+     heading('01. ATIVIDADES AUSENTES OU ATUALIZADAS');
+     if(!delta.changedActivities.length&&!delta.removedActivities.length)
+       paragraph('Nenhuma diferenca de atividade fisica identificada.');
+     for(const a of delta.changedActivities){
+       ensure(17);
+       pdf.setFont('helvetica','bold');pdf.setFontSize(9.3);pdf.setTextColor(20,78,92);
+       const label=(a.code||'SERVICO')+' - '+(a.service||'Atividade registrada');
+       const lines=pdf.splitTextToSize(label,CONTENT);
+       for(const line of lines){ensure(5);pdf.text(line,LEFT,y);y+=5}
+       paragraph('Quantidade TOTAL atual cadastrada: '+nf(a.qty)+' '+(a.unit||'')+
+         (a.front?' | Frente: '+a.front:''),8.8,4.2);
+       if(a.summary)paragraph(a.summary,8.7,4.3);
+     }
+     for(const old of delta.removedActivities)
+       paragraph('ATENCAO: registro anterior nao consta mais nos apontamentos atuais: '+
+         (old.code||'')+' - '+(old.service||''),8.5,4.3);
+     heading('02. FOTOGRAFIAS NAO INCLUIDAS NO DOCUMENTO ORIGINAL');
+     if(!delta.missingPhotos.length)paragraph('Nenhuma fotografia nova identificada.');
+     for(let i=0;i<delta.missingPhotos.length;i++){
+       const p=delta.missingPhotos[i];
+       const jpeg=await this.photoJpeg(p);
+       const maxH=88,w=Math.min(CONTENT,maxH*jpeg.ratio),h=w/jpeg.ratio;
+       ensure(h+24);
+       pdf.setFont('helvetica','bold');pdf.setFontSize(8.8);pdf.setTextColor(27,71,89);
+       pdf.text('FOTO COMPLEMENTAR '+String(i+1).padStart(2,'0'),LEFT,y);y+=5;
+       pdf.addImage(jpeg.data,'JPEG',LEFT+(CONTENT-w)/2,y,w,h,undefined,'FAST');
+       y+=h+5;
+       paragraph(p.caption||'Registro fotografico da obra.',8.5,4.1);
+     }
+     if(delta.removedPhotos.length){
+       heading('03. REFERENCIAS FOTOGRAFICAS INDISPONIVEIS');
+       paragraph(delta.removedPhotos.length+' fotografia(s) que constavam no manifesto do RDO original nao foram encontradas nos apontamentos atuais. Conferir antes de usar o complemento.',8.6);
+     }
+     for(let page=1;page<=pdf.getNumberOfPages();page++){
+       pdf.setPage(page);pdf.setDrawColor(205,218,225);pdf.line(LEFT,283,PAGE_W-RIGHT,283);
+       pdf.setFont('helvetica','normal');pdf.setTextColor(107,116,124);pdf.setFontSize(7.2);
+       pdf.text('RL ENGENHARIA | '+seq(this.current)+' | COMPLEMENTO NAO APROVADO',LEFT,288);
+       pdf.text('Pagina '+page+' de '+pdf.getNumberOfPages(),PAGE_W-RIGHT,288,{align:'right'});
+     }
+     this.saveBlob(pdf.output('blob'),'RL-'+seq(this.current)+'-COMPLEMENTO-'+this.current.work_date+'.pdf');
+     this.notice('Complemento em PDF gerado para conferência. O documento aprovado original não foi alterado.');
+   }catch(err){this.notice('Falha ao gerar o complemento do RDO: '+(err.message||err),true)}
+   finally{this.busy=false}
  },
  async downloadPdf(){
    if(!this.draft||this.busy)return;
