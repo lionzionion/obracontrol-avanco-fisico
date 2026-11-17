@@ -42,6 +42,7 @@ function setup(status){
     goal:()=>({unit:'m³'})};
   rdo.rows=[row];
   rdo.notice=(message,err)=>{notices.push([message,err])};
+  rdo.latestSnapshot=async()=>({snapshot:snap(),entries,photos});
   rdo.loadDate(DATE);
   return {rdo,root,row,notices};
 }
@@ -78,6 +79,7 @@ async function run(){
 
   // Novo rascunho deve se preencher automaticamente e preservar atividade manual.
   const draft=setup('draft');
+  await draft.rdo.refreshOpenedSnapshot(DATE,draft.rdo.current.id);
   assert.equal(draft.rdo.draft.activities.length,3,'2 automáticos + 1 manual');
   assert.equal(draft.rdo.draft.photo_manifest.length,8,'Inclui fotos no editor');
   assert.equal(draft.rdo.dirty,true,'Exige salvar a versão importada');
