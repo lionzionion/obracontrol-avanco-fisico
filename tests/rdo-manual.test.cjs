@@ -80,7 +80,7 @@ async function run(){
   assert.equal(rdo.draft.photo_manifest[0].kind,'manual','Ordem das fotos mantida');
   assert.equal(state.entries.length,1,'Não cria lançamentos nem medições');
   entry.qty=3.25;
-  rdo.synchronize();
+  await rdo.synchronize();
   assert.equal(rdo.draft.activities.find(a=>a.code==='01').qty,3.25,
     'Atualiza quantitativos automáticos');
   assert.equal(rdo.draft.activities.find(a=>a.kind==='manual').service,'Limpeza de canaleta',
