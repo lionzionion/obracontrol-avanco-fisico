@@ -28,7 +28,7 @@ function setup(status){
   const document={getElementById:id=>id==='rdoApp'?root:null,querySelectorAll:()=>[],
     activeElement:null,body:{}};
   const window={};
-  vm.runInNewContext(source,{window,document,console,Date,crypto:{randomUUID:()=>String(Math.random())},
+  vm.runInNewContext(source,{window,document,console,Date,structuredClone,crypto:{randomUUID:()=>String(Math.random())},
     confirm:()=>true,prompt:()=>'',setTimeout,clearTimeout},{filename:'rdo-module.js'});
   const rdo=window.ObraRDO;
   const row={id:'rdo-4',rdo_no:4,work_date:DATE,status,engineer_name:'Engenheiro responsável',
