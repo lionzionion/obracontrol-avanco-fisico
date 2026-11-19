@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#071a2d">
+<meta name="description" content="RL Engenharia — Controle de movimentação interna, destinação externa, MTR, CDF, pesagens e abastecimentos de obras.">
+<title>RL Movimentações e MTR | Engenharia</title>
+<link rel="icon" href="../../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../custos/custos.css?v=2"><link rel="stylesheet" href="./mov.css?v=1">
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script defer src="./mov.js?v=1"></script>
+</head>
+<body>
+<header class="topbar">
+ <div class="brand"><img src="../../assets/rl-logo.svg" alt="RL Engenharia"><div><span class="kicker">RL ENGENHARIA · GESTÃO AMBIENTAL E LOGÍSTICA</span><h1>Movimentações e MTR</h1></div></div>
+ <div class="topactions"><span id="statusCloud" class="status">Validando acesso…</span><a class="back" href="../">← Central de Obras</a></div>
+</header>
+<section class="auth-screen" id="authScreen" hidden><div class="auth-card"><img src="../../assets/rl-logo.svg" alt="RL Engenharia"><h2>Controle de movimentações</h2><p>Entre pela Central com sua conta RL. Este módulo utiliza a mesma autenticação e suas permissões por obra.</p><a href="../" class="button primary">Voltar para login da Central</a></div></section>
+<div id="app" class="app" hidden>
+ <section class="heading"><div><span class="eyebrow">CONTROLE OPERACIONAL · RESÍDUOS E MATERIAIS</span><h2>Destinação e movimentação interna</h2><p>Rastreabilidade de MTR, ticket, CDF, transferência de materiais e abastecimentos por frente de obra.</p></div>
+ <div class="heading-actions"><button type="button" id="refresh" class="button ghost">↻ Atualizar</button><button type="button" id="newWork" class="button ghost admin-only" hidden>+ Cadastrar obra</button><button type="button" class="button ghost" id="printScreen">Imprimir</button></div></section>
+ <section class="workbox"><label for="workFilter">OBRA / LOCAL</label><select id="workFilter" aria-label="Selecionar obra"></select><div class="work-meta"><span id="workLocation">—</span><span id="workLimitLabel">—</span></div></section>
+ <section class="stats" id="kpiCards" aria-label="Indicadores da obra">
+  <article class="metric"><span>Viagens de destinação</span><strong id="kpiTrips">—</strong><small>Tickets de pesagem registrados</small></article>
+  <article class="metric"><span>Peso líquido aferido</span><strong id="kpiWeight">—</strong><small>Toneladas dos tickets, não CDF</small></article>
+  <article class="metric"><span>Quantidade nos MTRs</span><strong id="kpiMtr">—</strong><small>Massa declarada nos manifestos</small></article>
+  <article class="metric"><span>Diferença de massa</span><strong id="kpiDiff">—</strong><small>Pesagem menos MTR declarado</small></article>
+  <article class="metric"><span>Certificados CDF pendentes</span><strong id="kpiCdf">—</strong><small>Destinação ainda não comprovada por CDF</small></article>
+  <article class="metric"><span>Viagens divergentes</span><strong id="kpiDivergent">—</strong><small>MTR vs. ticket (tolerância visual de 0,01 t)</small></article>
+  <article class="metric"><span>Abastecimentos</span><strong id="kpiFuel">—</strong><small>Registros independentes do RL Custos</small></article>
+  <article class="metric"><span>Valor de diesel registrado</span><strong id="kpiDiesel">—</strong><small>Não lançado automaticamente como despesa</small></article>
+ </section>
+ <nav class="mov-tabs" aria-label="Módulos do controle">
+   <button class="mov-tab active" data-tab="painel" type="button">Visão geral</button>
+   <button class="mov-tab" data-tab="destinacao" type="button">Destinação / MTR</button>
+   <button class="mov-tab" data-tab="interna" type="button">Movimentação interna</button>
+   <button class="mov-tab" data-tab="abastecimento" type="button">Abastecimentos</button>
+   <button class="mov-tab" data-tab="frota" type="button">Caminhões e cadastros</button>
+   <button class="mov-tab" data-tab="documentos" type="button">Documentos e pendências</button>
+ </nav>
+ <div id="notices" role="status" aria-live="polite" class="alert-list" hidden></div>
+ <section class="mov-panel" id="panel-painel">
+  <div class="overview-columns">
+   <article class="panel"><div class="panel-head"><div><h3>Conferência de destinação</h3><p>Tickets, MTRs e certificados não representam o mesmo estágio.</p></div></div>
+    <div class="progress-meta"><strong id="limitRatio">—</strong><span id="limitDetails">—</span></div><div class="track large"><i id="limitBar" style="width:0%"></i></div>
+    <div class="summary-rows spacious"><div><span>Limite informado na planilha</span><b id="summaryLimit">—</b></div><div><span>Saldo calculado sobre tickets</span><b id="summaryBalance">—</b></div><div><span>Com CDF recebido</span><b id="summaryCertified">—</b></div><div><span>Placas a conferir</span><b id="summaryPlates">—</b></div></div>
+    <p class="budget-note">O limite de 600 t está identificado como <strong>planejado</strong> na base; não constitui autorização ambiental comprovada. Pesagem e MTR não substituem o CDF.</p>
+   </article>
+   <article class="panel"><div class="panel-head"><div><h3>Últimos registros</h3><p>Prioridades de conferência documental.</p></div></div><div id="lastTrips" class="compact-list"></div></article>
+  </div>
+  <article class="panel"><div class="panel-head"><div><h3>Movimentação interna por localização</h3><p>Saldos separados por material e unidade; nenhum m³ será convertido para toneladas sem densidade.</p></div></div><div id="stockPreview" class="stock-grid"></div></article>
+ </section>
+ <section class="mov-panel" id="panel-destinacao" hidden>
+  <article class="panel"><div class="panel-head"><div><h3>Viagens para destinação externa</h3><p>Uma viagem por manifesto/ticket. Pesos são calculados com base nas pesagens.</p></div><button id="addShipment" class="button primary can-write" hidden>+ Nova viagem</button></div>
+  <div class="filters mov-filters"><div><label for="shipSearch">Pesquisar</label><input id="shipSearch" type="search" placeholder="MTR, ticket, placa, motorista…"></div><div><label for="shipStatus">Certificado</label><select id="shipStatus"><option value="all">Todos</option><option value="pendente">CDF pendente</option><option value="recebido">CDF recebido</option><option value="divergente">Massa divergente</option><option value="placa">Placa divergente</option></select></div><div><label for="shipPlate">Placa</label><select id="shipPlate"><option value="all">Todas</option></select></div></div>
+  <div class="table-wrap"><table><thead><tr><th>Data</th><th>Manifesto / Ticket</th><th>Veículo</th><th class="right">Ticket (t)</th><th class="right">MTR (t)</th><th class="right">Diferença</th><th>CDF / alertas</th><th></th></tr></thead><tbody id="shipRows"></tbody></table></div><p id="shipCount" class="table-foot"></p></article>
+ </section>
+ <section class="mov-panel" id="panel-interna" hidden>
+  <article class="panel"><div class="panel-head"><div><h3>Transferência e movimentação interna</h3><p>Geração, entrada, transferências, reaproveitamento, consumo e saída por localização.</p></div><button id="addInternal" class="button primary can-write" hidden>+ Registrar movimentação</button></div>
+  <div class="info-strip"><span>Para transferir ou consumir material, registre primeiro sua <strong>geração/entrada</strong> na área de origem. O sistema bloqueia saldos negativos.</span></div>
+  <div id="stockTable" class="table-wrap"></div>
+  <h4>Histórico de movimentações</h4><div class="table-wrap"><table><thead><tr><th>Data</th><th>Material</th><th>Operação</th><th>Origem → destino</th><th class="right">Quantidade</th><th>Operador / equipamento</th><th></th></tr></thead><tbody id="internalRows"></tbody></table></div>
+ </article>
+ </section>
+ <section class="mov-panel" id="panel-abastecimento" hidden>
+  <article class="panel"><div class="panel-head"><div><h3>Abastecimentos da frota</h3><p>Controle operacional de litros, valor, fornecedor e NF — sem duplicar o financeiro.</p></div><button id="addFuel" class="button primary can-write" hidden>+ Novo abastecimento</button></div>
+  <div id="fuelByPlate" class="plate-totals"></div>
+  <div class="table-wrap"><table><thead><tr><th>Data</th><th>Placa / motorista</th><th>Nota fiscal</th><th>Fornecedor</th><th class="right">Litros</th><th class="right">Valor</th><th></th></tr></thead><tbody id="fuelRows"></tbody></table></div></article>
+ </section>
+ <section class="mov-panel" id="panel-frota" hidden>
+  <div class="overview-columns">
+   <article class="panel"><div class="panel-head"><div><h3>Frota cadastrada</h3><p>Placa, motorista de referência e transportadora.</p></div><button class="button ghost can-write" id="addVehicle" hidden>+ Caminhão</button></div><div id="fleetList" class="compact-list"></div></article>
+   <article class="panel"><div class="panel-head"><div><h3>Materiais e locais internos</h3><p>Cadastros básicos para o controle de saldos.</p></div><div class="inline-buttons"><button id="addMaterial" class="button ghost can-write" hidden>+ Material</button><button id="addLocation" class="button ghost can-write" hidden>+ Local</button></div></div><div id="materialsList" class="mini-list"></div><hr><div id="locationsList" class="mini-list"></div></article>
+  </div>
+  <article class="panel admin-only" id="accessPanel" hidden><div class="panel-head"><div><h3>Acesso da equipe operacional</h3><p>Atribua permissão por obra, sem conceder perfil de administrador.</p></div></div>
+   <form id="accessForm" class="inline-form"><label for="accessUser">Colaborador</label><select id="accessUser" required></select><label for="accessPermission">Permissão</label><select id="accessPermission"><option value="view">Consulta</option><option value="write">Lançar e corrigir</option></select><button class="button primary" type="submit">Conceder acesso</button></form>
+   <div id="accessList" class="mini-list"></div></article>
+ </section>
+ <section class="mov-panel" id="panel-documentos" hidden>
+  <article class="panel"><div class="panel-head"><div><h3>Pendências para conferência</h3><p>Resíduos, documentação, placas e notas fiscais.</p></div></div><div id="pendingCards" class="pending-grid"></div></article>
+  <article class="panel"><div class="panel-head"><div><h3>Arquivos vinculados</h3><p>MTRs, tickets, CDFs, notas e fotografias armazenados em bucket privado.</p></div></div><div id="fileList" class="compact-list"></div><div class="info-strip">Os números importados da planilha não significam que os arquivos PDF foram anexados. Faça o upload dos documentos originais na viagem ou abastecimento correspondente.</div></article>
+ </section>
+ <footer>RL ENGENHARIA — FAZENDO ACONTECER · MOVIMENTAÇÃO INTERNA E DESTINAÇÃO DE RESÍDUOS · AMBEV ITAPISSUMA</footer>
+</div>
+<dialog id="detailDialog" class="dialog"><div class="dialog-content large"><div class="dialog-header"><div><span class="eyebrow">REGISTRO DA OBRA</span><h2 id="detailTitle">Detalhamento</h2></div><button class="close" data-close="detailDialog" type="button" aria-label="Fechar">×</button></div><div id="detailBody"></div><div id="detailControls" class="detail-actions can-write" hidden><select id="docKind" aria-label="Tipo de documento"><option value="mtr">MTR</option><option value="ticket">Ticket de pesagem</option><option value="cdf">CDF</option><option value="nf">Nota fiscal</option><option value="foto">Fotografia</option><option value="outro">Outro documento</option></select><input id="docInput" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"><button class="button ghost" id="sendDoc" type="button">Anexar arquivo</button></div><div id="cdfFormWrapper" class="detail-section can-write" hidden><h3>Registrar CDF recebido</h3><form id="cdfForm" class="inline-form"><label for="cdfNumber">Nº CDF</label><input id="cdfNumber" required><label for="cdfDate">Data CDF</label><input id="cdfDate" type="date" required><button class="button primary" type="submit">Confirmar CDF (após anexar arquivo)</button></form></div></div></dialog>
+<dialog id="entryDialog" class="dialog"><form id="entryForm" class="dialog-content"><div class="dialog-header"><div><span class="eyebrow">NOVO APONTAMENTO</span><h2 id="entryTitle">Registro</h2></div><button class="close" data-close="entryDialog" type="button" aria-label="Fechar">×</button></div><div id="entryFields" class="form-grid"></div><p class="error" id="entryError"></p><div class="form-actions"><button class="button ghost" type="button" data-close="entryDialog">Cancelar</button><button class="button primary" id="entrySubmit" type="submit">Salvar no Supabase</button></div></form></dialog>
+<div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+</body></html>
