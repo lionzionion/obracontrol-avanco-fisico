@@ -57,7 +57,7 @@ async function load(workId){
  state.busy=true;const prev=state.work;state.work=workId;
  try{
   const [logs,rates,closures,lines,attachments]=await Promise.all([
-   collect("rl_mov_daily_logs","id,work_id,vehicle_id,work_date,day_type,review_status,driver_name,field_note,review_note,reported_by,reported_at,reviewed_by,reviewed_at,closure_id,created_at","work_date"),
+   collect("rl_mov_daily_logs","id,work_id,vehicle_id,work_date,day_type,review_status,driver_name,field_note,review_note,reported_by,reported_at,reviewed_by,reviewed_at,closure_id,updated_at","work_date"),
    canFinancial()?collect("rl_mov_daily_rates","id,work_id,vehicle_id,valid_from,full_day_rate,standby_factor,supplier,contract_reference,notes,created_at","valid_from"):Promise.resolve([]),
    canFinancial()?collect("rl_mov_daily_closures","id,work_id,vehicle_id,start_date,end_date,status,quantity_total,subtotal,extras,discounts,total_amount,notes,approved_by,approved_at,created_at","created_at"):Promise.resolve([]),
    canFinancial()?collect("rl_mov_daily_closure_items","id,closure_id,log_id,work_id,work_date,day_type,driver_name,day_factor,applied_day_rate,amount","work_date"):Promise.resolve([]),
