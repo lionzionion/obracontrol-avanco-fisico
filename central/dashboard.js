@@ -147,6 +147,7 @@
       state.signedPhotos.clear();
       renderEverything();
       void window.RL_COSTS_OVERVIEW?.load?.(client);
+      void window.RL_MOV_OVERVIEW?.load?.(client);
       $("syncedAt").textContent="Sincronizado em "+new Date().toLocaleString("pt-BR",{timeZone:"America/Recife"});
       setNotice("");
     }catch(error){
