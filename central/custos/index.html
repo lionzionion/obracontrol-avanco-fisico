@@ -7,10 +7,11 @@
 <meta name="description" content="RL Custos | Gestão financeira das obras da RL Engenharia.">
 <title>RL Custos | Controle de Custos de Obras</title>
 <link rel="icon" href="../../icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="./custos.css?v=4">
+<link rel="stylesheet" href="./custos.css?v=5">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <script defer src="./custos.js?v=3"></script>
 <script defer src="./financeiro.js?v=2"></script>
+<script defer src="./relatorios-avancados.js?v=1"></script>
 </head>
 <body>
 <header class="topbar">
@@ -79,6 +80,46 @@
     </div>
     <input type="file" id="financeBatchInput" accept="application/pdf,image/jpeg,image/png,image/webp" multiple hidden>
     <input type="file" id="financeAttachmentInput" accept="application/pdf,image/jpeg,image/png,image/webp" hidden>
+  </section>
+  <section class="panel report-pro" id="reportsAdvanced" aria-label="Relatórios gerenciais da RL Engenharia">
+    <header class="report-header">
+      <div><span class="eyebrow">RELATÓRIOS GERENCIAIS · RL ENGENHARIA</span><h3>Centro de relatórios</h3>
+        <p>Consolidação por obra ou por toda a empresa, com indicadores auditáveis e exportação.</p></div>
+      <div class="report-header-actions"><button type="button" class="button ghost" id="reportsClear">Limpar filtros</button>
+        <button type="button" class="button ghost" id="reportsExport">Exportar CSV (Excel)</button>
+        <button type="button" class="button primary" id="reportsPrint">Imprimir / Salvar PDF</button></div>
+    </header>
+    <div id="reportsKinds" class="report-tabs" role="group" aria-label="Escolha o relatório">
+      <button type="button" data-report-kind="executivo" class="selected">Resumo executivo</button>
+      <button type="button" data-report-kind="fornecedores">Fornecedores</button>
+      <button type="button" data-report-kind="categorias">Categorias</button>
+      <button type="button" data-report-kind="mensal">Evolução mensal</button>
+      <button type="button" data-report-kind="pendencias">Pendências</button>
+    </div>
+    <div class="report-controls">
+      <div><label for="reportsScope">Abrangência</label><select id="reportsScope">
+        <option value="current">Obra selecionada</option><option value="all">Todas as obras</option>
+      </select></div>
+      <div><label for="reportsFrom">Data inicial</label><input type="date" id="reportsFrom"></div>
+      <div><label for="reportsTo">Data final</label><input type="date" id="reportsTo"></div>
+      <div><label for="reportsSupplier">Fornecedor</label><select id="reportsSupplier"><option value="all">Todos</option></select></div>
+      <div><label for="reportsCategory">Categoria</label><select id="reportsCategory"><option value="all">Todas</option></select></div>
+    </div>
+    <div class="report-document">
+      <div class="report-document-top">
+        <div class="report-print-logo"><img src="../../assets/rl-logo.svg" alt="RL Engenharia"></div>
+        <div><span class="eyebrow">RL ENGENHARIA · CONTROLE DE CUSTOS</span><h3 id="reportsTitle">Resumo executivo</h3>
+          <p id="reportsSubtitle"></p><p id="reportsPeriod"></p><span id="reportsIssued"></span></div>
+      </div>
+      <div class="report-kpis" id="reportsKpis"></div>
+      <div class="report-analysis">
+        <div class="report-chart-wrap"><h4>Distribuição e tendências</h4><div id="reportsChart"></div></div>
+        <div class="report-table-wrap"><h4>Demonstrativo analítico</h4><div id="reportsTable"></div></div>
+      </div>
+      <p class="report-footnote" id="reportsNote"></p>
+      <p class="report-count" id="reportsCount"></p>
+      <footer class="report-document-footer">RL ENGENHARIA — FAZENDO ACONTECER · Dados financeiros restritos à equipe autorizada</footer>
+    </div>
   </section>
   <section class="panel registers"><div class="panel-head"><div><h3>Documentos e lançamentos</h3><p id="recordCount">Carregando histórico…</p></div><span class="mini-tag">SEPARADO POR OBRA</span></div>
     <div class="filters"><div><label for="searchFilter">Buscar</label><input id="searchFilter" type="search" placeholder="Fornecedor, nº documento, descrição…"></div><div><label for="statusFilter">Situação</label><select id="statusFilter"><option value="all">Todas</option><option value="realizada">Despesa realizada</option><option value="autorizada">Compra autorizada</option><option value="cotacao">Cotação</option><option value="cancelada">Cancelada</option></select></div><div><label for="categoryFilter">Categoria</label><select id="categoryFilter"><option value="all">Todas as categorias</option></select></div></div>
