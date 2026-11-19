@@ -34,6 +34,7 @@
   <script defer src="./enhancements.js?v=2"></script>
   <script defer src="./ui-icons.js?v=2"></script>
   <script defer src="./costs-overview.js?v=1"></script>
+  <script defer src="./mov-overview.js?v=1"></script>
 </head>
 <body>
   <section id="authGate" class="auth-gate">
@@ -83,6 +84,9 @@
       <button type="button" class="app-button" data-app="custos" aria-label="Abrir RL Custos de Obras dentro da Central">
         <span class="app-left"><span data-app-icon="custos" aria-hidden="true"></span><span>RL Custos<small>Despesas e pagamentos</small></span></span><span data-icon="right" class="app-chevron"></span>
       </button>
+      <button type="button" class="app-button" data-app="movimentacoes" aria-label="Abrir RL Movimentações e MTR dentro da Central">
+        <span class="app-left"><span data-app-icon="movimentacoes" aria-hidden="true"></span><span>RL Movimentações<small>MTR, resíduos e transporte interno</small></span></span><span data-icon="right" class="app-chevron"></span>
+      </button>
       </div>
       <div class="sidebar-bottom"><div class="status-dot"></div><div><b>AMBEV • ITAPISSUMA</b><small>Fonte: Supabase compartilhado</small></div></div>
     </aside>
@@ -130,6 +134,16 @@
               <div><small>PAGAMENTOS REGISTRADOS</small><strong id="costOverviewPaid">—</strong></div>
             </div>
             <button type="button" class="btn primary" id="openCostsFromOverview">Abrir controle de custos</button>
+          </article>
+          <article class="panel mov-quick-panel">
+            <div class="mov-quick-head"><span data-icon="truck"></span><div><span class="eyebrow">LOGÍSTICA E RESÍDUOS · AMBEV ITAPISSUMA</span><h2>RL Movimentações e MTR</h2><p>Controle de destinação, tickets, CDF e movimentação interna.</p></div></div>
+            <div class="mov-quick-stats">
+              <div><small>PESO EM TICKETS</small><strong id="movOverviewWeight">—</strong></div>
+              <div><small>VIAGENS</small><strong id="movOverviewTrips">—</strong></div>
+              <div><small>CDF PENDENTES</small><strong id="movOverviewPending">—</strong></div>
+              <div><small>DIVERGÊNCIAS</small><strong id="movOverviewMismatch">—</strong></div>
+            </div>
+            <button type="button" class="btn primary" id="openMovFromOverview">Abrir movimentações</button>
           </article>
           <article class="panel focus-panel">
             <div class="panel-head focus-title"><div><h2>Leitura do avanço físico</h2><p>Entenda cada etapa: aprovado na medição, executado a medir e saldo contratual</p></div><select id="focusServiceSelect" aria-label="Selecionar serviço para detalhar o avanço"><option value="">Selecione um serviço</option></select></div>
