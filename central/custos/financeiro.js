@@ -9,7 +9,8 @@ const numeric=v=>Math.round((Number(v)||0)*100)/100;
 const fmtDate=d=>d?new Date(String(d).slice(0,10)+"T12:00:00").toLocaleDateString("pt-BR"):"Não informada";
 const today=()=>new Date().toLocaleDateString("sv-SE",{timeZone:"America/Recife"});
 const dayDiff=(a,b)=>Math.round((Date.parse(a+"T12:00:00Z")-Date.parse(b+"T12:00:00Z"))/86400000);
-const state={tab:"payables",uploadExpenseId:null,rows:[]};
+const requestedTab=new URLSearchParams(window.location.search).get("aba");
+const state={tab:requestedTab==="comprovantes"?"attachments":requestedTab==="pagar"?"payables":"payables",uploadExpenseId:null,rows:[]};
 function api(){return window.RL_CUSTOS_API;}
 function err(message){const label=$("financeStatusMessage");if(label){label.textContent=message;label.hidden=!message;}}
 function currentData(){
@@ -116,7 +117,8 @@ function render(){
 }
 function toExport(){
  const data=currentData(),head=["Relatório","Obra","Fornecedor","Documento","Data documento","Vencimento","Valor líquido","Valor pago","Saldo a pagar","Situação"],out=[];
- const scope=state.tab==="payables"?filters(data.rows.filter(x=>x.status==="realizada"&&(x.balance>0||$("financeSituation").value==="paid")),x=>x.due_date):filters(data.rows,x=>x.issue_date);
+ const scope=state.tab==="payables"?filters(data.rows.filter(x=>x.status==="realizada"&&(x.balance>0||$("financeSituation").value==="paid")),x=>x.due_date)
+  :filters(state.tab==="attachments"?data.missing:data.rows,x=>x.issue_date);
  if(state.tab==="payments"){
    const phead=["Relatório","Obra","Fornecedor","Data pagamento","Forma","Valor pago","Origem"];
    const payments=data.payments.filter(p=>{const exp=data.rows.find(x=>x.id===p.expense_id);return exp&&filters([exp],()=>p.payment_date).length;});
@@ -164,6 +166,25 @@ async function attach(event){
  }catch(e){err("Upload não concluído: "+e.message)}
  finally{button.disabled=false;state.uploadExpenseId=null}
 }
+async function attachBatch(event){
+ const files=Array.from(event.target.files||[]);
+ event.target.value="";
+ if(!files.length||!api()?.canEdit())return;
+ $("financeBatchUpload").disabled=true;
+ const docs=currentData().rows;
+ let uploaded=0;const problems=[];
+ for(const file of files){
+   const id=file.name.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0]?.toLowerCase();
+   const expense=docs.find(x=>x.id.toLowerCase()===id);
+   if(!expense){problems.push(file.name+": identificador de lançamento ausente ou de outra obra");continue;}
+   err("Enviando "+(uploaded+1)+" / "+files.length+": "+file.name);
+   try{await api().uploadDocument(expense.id,file,"comprovante");uploaded++;}
+   catch(e){problems.push(file.name+": "+e.message);}
+ }
+ await api().reload();
+ $("financeBatchUpload").disabled=false;render();
+ err(uploaded+" de "+files.length+" arquivos enviados e conferidos."+(problems.length?" Pendências: "+problems.join(" | "):""));
+}
 function wire(){
  $("financeReportTabs").addEventListener("click",e=>{const b=e.target.closest("[data-finance-tab]");if(!b)return;state.tab=b.dataset.financeTab;render();});
  ["financeFrom","financeTo","financeSituation","financeSearch"].forEach(id=>$(id).addEventListener(id==="financeSearch"?"input":"change",render));
@@ -177,6 +198,8 @@ function wire(){
    if(b.dataset.financeUpload&&api()?.canEdit()){state.uploadExpenseId=b.dataset.financeUpload;$("financeAttachmentInput").click();}
  });
  $("financeAttachmentInput").addEventListener("change",attach);
+ $("financeBatchUpload").addEventListener("click",()=>$("financeBatchInput").click());
+ $("financeBatchInput").addEventListener("change",attachBatch);
  $("financeDueForm").addEventListener("submit",saveDue);
  $("financeDueCancel").addEventListener("click",()=>$("financeDueDialog").close());
  $("financeDueClose").addEventListener("click",()=>$("financeDueDialog").close());
