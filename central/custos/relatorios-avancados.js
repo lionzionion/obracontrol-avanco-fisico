@@ -186,7 +186,7 @@ function refreshOptions(selectId,values,selected){
  elem.value=values.some(v=>v.value===current)?current:"all";
 }
 function printSubtitle(d){
- const period=state.from||state.to?(state.from?date(state.from):"Início")+" a "+(state.to?date(state.to):"Hoje"):"Todo o histórico";
+ const period=state.from||state.to?(state.from?date(state.from):"Sem limite inicial")+" a "+(state.to?date(state.to):"Sem limite final"):"Todo o histórico";
  return [
   state.scope==="all"?"Todas as obras":(d.filteredWorks[0]?.name||"Obra não selecionada"),
   "Período: "+period,
@@ -241,6 +241,11 @@ function exportCSV(){
   const type=r.columns[i].type;
   return type==="money"||type==="percent"?Number(v).toFixed(2).replace(".",","):v;
  }))];
+ if(!r.columns.some(c=>c.type==="percent")&&r.rows.length){
+   rows.push(r.columns.map((column,i)=>i===0?"TOTAL":r.numericColumns.includes(i)
+     ?r.rows.reduce((sum,row)=>sum+(Number(row[i])||0),0).toFixed(column.type==="count"?0:2).replace(".",","):""));
+ }
+ rows.push([],["Notas",r.foot]);
  const text="\uFEFF"+rows.map(row=>row.map(csvSafe).join(";")).join("\r\n");
  const blob=new Blob([text],{type:"text/csv;charset=utf-8"});
  const url=URL.createObjectURL(blob),a=document.createElement("a");
