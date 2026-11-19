@@ -297,3 +297,11 @@ body{background:radial-gradient(circle at 72% -12%,rgba(40,102,123,.11),transpar
 @media(max-width:1350px){.mov-quick-panel{flex-wrap:wrap}.mov-quick-stats{flex:1;justify-content:space-between}.mov-quick-panel>.btn{margin-left:auto}}
 @media(max-width:750px){.mov-quick-panel{padding:16px}.mov-quick-head{width:100%}.mov-quick-stats{flex:0 0 100%;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.mov-quick-panel>.btn{width:100%}}
 @media print{.mov-quick-panel{display:none!important}}
+
+/* Diário de caminhões: acesso rápido e contagem de aprovações no painel executivo */
+.mov-quick-stats{grid-template-columns:repeat(3,minmax(95px,1fr));gap:12px 18px}
+.mov-quick-actions{display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+.mov-quick-actions .btn{white-space:nowrap;text-align:center;justify-content:center}
+@media(max-width:1350px){.mov-quick-stats{grid-template-columns:repeat(3,minmax(120px,1fr))}.mov-quick-actions{margin-left:auto}}
+@media(max-width:750px){.mov-quick-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.mov-quick-actions{flex-direction:row;width:100%;margin-left:0}.mov-quick-actions .btn{flex:1;min-width:0;white-space:normal}}
+@media(max-width:440px){.mov-quick-actions{flex-direction:column}}
