@@ -67,7 +67,7 @@ async function loadAll(silent=false){
    if(!silent)$("recordCount").textContent="Atualizando documentos da obra…";
    const [works,expenses,payments,lines,attachments]=await Promise.all([
      fetchAll("rl_cost_works","id,slug,name,client,municipality,state_code,contract_amount,target_cost,target_status,notes,active,created_at","created_at"),
-     fetchAll("rl_cost_expenses","id,work_id,supplier,supplier_tax_id,document_no,document_kind,issue_date,category,description,status,gross_amount,discount_amount,freight_amount,amount,notes,source_document_name,created_at","created_at"),
+     fetchAll("rl_cost_expenses","id,work_id,supplier,supplier_tax_id,document_no,document_kind,issue_date,due_date,category,description,status,gross_amount,discount_amount,freight_amount,amount,notes,source_document_name,created_at","created_at"),
      fetchAll("rl_cost_payments","id,expense_id,amount,payment_date,payment_method,confirmation_source,confirmation_note,recorded_at","recorded_at"),
      fetchAll("rl_cost_expense_lines","id,expense_id,line_no,product_code,description,unit,qty,unit_price,line_total","line_no"),
      fetchAll("rl_cost_attachments","id,expense_id,storage_path,file_name,document_type,created_at","created_at")
@@ -87,6 +87,7 @@ function render(){
  $("workBudgetStatus").textContent=w?.target_status==="aprovado"?"Meta de custo aprovada":w?.target_status==="provisorio"?"Meta de custo provisória":"Orçamento interno de custos pendente";
  renderMetrics();
  renderExpenseList();
+ window.dispatchEvent(new Event("rl-custos-updated"));
 }
 function renderMetrics(){
  const work=selectedWork(),exps=selectedExpenses();
@@ -166,6 +167,7 @@ function detailExpense(exp){
    detailCell("Fornecedor",exp.supplier)+
    detailCell("Documento",exp.document_no||"Não informado")+
    detailCell("Data documento",date(exp.issue_date))+
+   detailCell("Vencimento",date(exp.due_date))+
    detailCell("Categoria",exp.category)+
    detailCell("Tipo documento",exp.document_kind)+
    detailCell("Obra",selectedWork()?.name||"—")+'</div>';
@@ -215,6 +217,7 @@ async function saveExpense(event){
      document_no:$("expenseDocument").value.trim()||null,
      document_kind:$("expenseDocType").value,
      issue_date:$("expenseIssueDate").value||null,
+     due_date:$("expenseDueDate").value||null,
      category:$("expenseCategory").value,
      description:$("expenseDescription").value.trim(),
      status,gross_amount:gross,discount_amount:discount,freight_amount:freight,
@@ -249,6 +252,11 @@ async function uploadDocument(expenseId,file,kind){
  const expense=state.expenses.find(e=>e.id===expenseId);
  const workId=expense?.work_id||selectedWork()?.id;
  if(!workId)throw Error("Obra não encontrada.");
+ const digest=await crypto.subtle.digest("SHA-256",await file.arrayBuffer());
+ const sha256=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
+ const existing=await client.from("rl_cost_attachments").select("id").eq("expense_id",expenseId).eq("content_sha256",sha256).limit(1);
+ if(existing.error)throw existing.error;
+ if(existing.data?.length)throw Error("Este mesmo arquivo já está associado ao lançamento.");
  const simpleName=file.name.normalize("NFKD").replace(/[^\w.-]/g,"_").slice(-120);
  const path=workId+"/"+expenseId+"/"+crypto.randomUUID()+"-"+simpleName;
  const {error}=await client.storage.from("rl-custos-documentos").upload(path,file,{upsert:false,contentType:file.type});
@@ -257,9 +265,12 @@ async function uploadDocument(expenseId,file,kind){
  const docType=types.includes(kind)?kind:"outro";
  const {error:dbError}=await client.from("rl_cost_attachments").insert({
    expense_id:expenseId,storage_path:path,file_name:file.name.slice(0,180),
-   document_type:docType,uploaded_by:state.profile.id
+   document_type:docType,uploaded_by:state.profile.id,content_sha256:sha256
  });
- if(dbError)throw Error("Arquivo enviado, mas o cadastro do anexo falhou: "+dbError.message);
+ if(dbError)throw Error("Arquivo armazenado, mas a vinculação falhou: "+dbError.message+". Contate o administrador para recuperar o documento sem duplicá-lo.");
+ const verification=await client.storage.from("rl-custos-documentos").download(path);
+ if(verification.error||verification.data.size!==file.size)
+   throw Error("Anexo registrado, mas não foi possível conferir a recuperação do arquivo: "+(verification.error?.message||"tamanho divergente"));
 }
 async function attachToDetail(event){
  const file=event.target.files?.[0];if(!file||!state.detailId)return;
@@ -356,6 +367,22 @@ function wire(){
  $("paymentButton").addEventListener("click",openPayment);
  document.querySelectorAll("[data-close]").forEach(button=>button.addEventListener("click",()=>$(button.dataset.close).close()));
 }
+window.RL_CUSTOS_API=Object.freeze({
+ snapshot:()=>state.profile?state:null,
+ canEdit,
+ uploadDocument,
+ openExpense,
+ reload:()=>loadAll(true),
+ async saveDueDate(expenseId,dueDate){
+   if(!canEdit())throw Error("Somente administradores podem modificar vencimentos.");
+   if(dueDate&&!/^\d{4}-\d{2}-\d{2}$/.test(dueDate))throw Error("Data de vencimento inválida.");
+   const {data,error}=await client.from("rl_cost_expenses").update({due_date:dueDate||null})
+     .eq("id",expenseId).select("id,due_date").single();
+   if(error)throw error;
+   if(!data)throw Error("O banco não confirmou a alteração.");
+   return data;
+ }
+});
 async function start(){
  wire();
  try{
