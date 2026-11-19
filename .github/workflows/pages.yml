@@ -60,7 +60,11 @@ jobs:
           node --check central/movimentacoes/mov.js
           node central/movimentacoes/tests/smoke.test.cjs
           node --check central/custos/custos.js
+          node --check central/custos/financeiro.js
+          node --check central/custos/relatorios-avancados.js
           node central/custos/tests/smoke.test.cjs
+          node central/custos/tests/financeiro.test.cjs
+          node central/custos/tests/relatorios-gerenciais.test.cjs
           test -s central/custos/index.html
           test -s central/custos/custos.css
           test -s central/movimentacoes/index.html
@@ -135,6 +139,9 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: ./dist
+
+      - name: Aguardar indexação do artefato no Pages
+        run: sleep 18
 
       - name: Publicar no GitHub Pages
         id: deployment
