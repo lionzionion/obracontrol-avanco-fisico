@@ -1,0 +1,81 @@
+
+/* RL Engenharia — controle de diárias e fechamentos por caminhão */
+#panel-diarias .panel{margin-bottom:16px}
+.day-hero{background:linear-gradient(112deg,#104654,#123748)!important;border-color:#437c79!important;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.day-hero h3{font-size:1.18rem;margin:7px 0 6px;color:#f2f9f9}
+.day-hero p{margin:0;max-width:750px;color:#b4ccd6;line-height:1.5}
+.day-hero-actions{display:flex;gap:8px;flex-wrap:wrap}
+.day-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:16px}
+.day-stats>.metric{padding:18px}
+.day-stats>.metric>strong{font-size:1.75rem}
+.day-filters{display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:18px}
+.day-filters label{display:flex;flex-direction:column;gap:7px;flex:1;min-width:145px}
+.day-filters select,.day-filters input{min-width:0;width:100%}
+.day-filters button{min-height:43px}
+.day-state{border-radius:24px;display:inline-block;font-size:.7rem;white-space:nowrap;padding:7px 10px;font-weight:800}
+.day-state.pendente{background:#53482c;color:#ffe2a1}
+.day-state.devolvido{background:#693c36;color:#ffcfbe}
+.day-state.aprovado{background:#1d5946;color:#cdf4d8}
+.day-state.fechada{background:#254866;color:#d0e8ff}
+.day-title strong{display:block}
+.day-title small{font-size:.7rem;color:#a4c4d1;display:block;margin-top:4px}
+.day-short{font-size:.74rem;max-width:245px;white-space:normal;color:#b0c6d3}
+.day-buttons{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.day-buttons button{border:1px solid #567688;border-radius:8px;background:#1d445a;color:#e8f7ff;padding:7px 10px;font-size:.73rem;font-weight:750}
+.day-buttons .approve{background:#275642;color:#d7f4d7;border-color:#69986b}
+.day-buttons .return{background:#5c3b35;color:#ffe2c8;border-color:#8a6b59}
+.daily-dialog{max-width:650px}
+.daily-dialog-fields{display:flex;flex-direction:column;gap:9px}
+.daily-dialog-fields>label{font-weight:770}
+.daily-dialog-fields>input,.daily-dialog-fields>select,.daily-dialog-fields>textarea{margin-bottom:7px}
+.daily-dialog-fields label{line-height:1.4}
+.daily-types{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:5px 0 10px}
+.daily-types label{position:relative;display:block}
+.daily-types label>input{position:absolute;opacity:0;left:15px;top:15px;min-height:0}
+.daily-types label>span{display:flex;flex-direction:column;gap:5px;border:1px solid #476a80;border-radius:12px;padding:14px;min-height:73px;cursor:pointer;background:#14384c}
+.daily-types label>span b{font-size:.91rem;color:#eef9fb}
+.daily-types label>span small{font-size:.7rem;color:#a8c7cf}
+.daily-types input:checked+span{border-color:#afda6b;box-shadow:inset 0 0 0 1px #afd968;background:#234943}
+.daily-types input:focus-visible+span{outline:2px solid #b6e269;outline-offset:2px}
+.form-hint{color:#aac2c9;font-size:.72rem;line-height:1.5;display:block}
+.two-date{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.two-date label{display:flex;flex-direction:column;gap:6px}
+.daily-preview{background:#17394a;border:1px solid #3d6170;border-radius:12px;padding:14px;line-height:1.65;font-size:.79rem;margin:8px 0;color:#d3e7eb}
+.daily-preview strong{color:#cbf192}
+.daily-preview .warning-line{margin:7px 0;color:#ffd698}
+.daily-check{display:flex;align-items:flex-start;gap:10px;color:#dfedf1;font-size:.77rem;line-height:1.4}
+.daily-check input{min-height:auto;width:auto;flex-shrink:0;margin-top:2px}
+.daily-line-list{display:flex;flex-direction:column;gap:9px;margin:12px 0}
+.daily-line-item{display:flex;gap:12px;align-items:start;justify-content:space-between;background:#143549;border:1px solid #355972;border-radius:10px;padding:12px}
+.daily-line-item strong{display:block;font-size:.81rem}
+.daily-line-item small{display:block;color:#a4c5ce;margin-top:4px;font-size:.72rem}
+.daily-line-item>span{font-weight:850;white-space:nowrap}
+.daily-detail-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0}
+.daily-detail-kpis>div{background:#14384a;border:1px solid #356475;border-radius:10px;padding:13px}
+.daily-detail-kpis span{color:#accbd4;font-size:.7rem;display:block}
+.daily-detail-kpis b{font-size:1.13rem;margin-top:8px;display:block}
+.daily-note{font-size:.78rem;color:#b6cdd7;white-space:pre-wrap;line-height:1.65}
+#dailyPrintRoot{display:none}
+#dailyPrintRoot[hidden]{display:none}
+@media(max-width:1150px){.day-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.day-hero-actions{width:100%;flex-direction:column}.day-hero-actions button{width:100%;font-size:.86rem;padding:14px}.day-stats{gap:9px}.day-stats>.metric{padding:13px}.day-stats>.metric>strong{font-size:1.35rem}.daily-types{grid-template-columns:repeat(2,minmax(0,1fr))}.day-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.day-filters label{min-width:0}.day-filters button{grid-column:1/-1}.daily-detail-kpis{grid-template-columns:1fr}.two-date{gap:9px}.daily-dialog{padding:18px}}
+@media print{
+ body.daily-print-mode>*:not(#dailyPrintRoot){display:none!important}
+ body.daily-print-mode #dailyPrintRoot,body.daily-print-mode #dailyPrintRoot[hidden]{display:block!important;position:static;max-width:none;margin:0;background:#fff;color:#15232b;font-family:Arial,sans-serif}
+ body.daily-print-mode{background:#fff!important;color:#111!important}
+ body.daily-print-mode #dailyPrintRoot h1{font-size:21px;color:#112838;margin:9px 0 5px}
+ body.daily-print-mode #dailyPrintRoot h2{font-size:16px;color:#123044}
+ body.daily-print-mode #dailyPrintRoot .print-head{display:flex;align-items:center;gap:20px;padding-bottom:16px;border-bottom:2px solid #2d685c}
+ body.daily-print-mode #dailyPrintRoot .print-head img{max-width:130px;max-height:65px;object-fit:contain}
+ body.daily-print-mode #dailyPrintRoot .print-head p{margin:3px 0;font-size:11px;color:#3e565f}
+ body.daily-print-mode #dailyPrintRoot .print-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:14px 0}
+ body.daily-print-mode #dailyPrintRoot .print-grid p{border:1px solid #d6dedc;padding:9px;font-size:11px}
+ body.daily-print-mode #dailyPrintRoot .print-grid b{display:block;margin-top:6px;font-size:14px}
+ body.daily-print-mode #dailyPrintRoot table{min-width:0;font-size:10px;color:#111;border-collapse:collapse;width:100%}
+ body.daily-print-mode #dailyPrintRoot th,body.daily-print-mode #dailyPrintRoot td{border:1px solid #9aabab;padding:6px;color:#111;background:#fff;text-align:left;font-size:10px}
+ body.daily-print-mode #dailyPrintRoot .print-total{margin-top:15px;border-top:2px solid #245c57;padding-top:13px;text-align:right;font-size:17px;font-weight:800}
+ body.daily-print-mode #dailyPrintRoot .print-foot{display:flex;justify-content:space-between;gap:20px;margin-top:65px}
+ body.daily-print-mode #dailyPrintRoot .print-sign{text-align:center;width:44%;border-top:1px solid #54646a;padding-top:8px;font-size:11px}
+ body.daily-print-mode #dailyPrintRoot .print-note{font-size:10px;color:#394e5a;line-height:1.6}
+ @page{size:A4 portrait;margin:14mm}
+}
