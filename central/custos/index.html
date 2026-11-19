@@ -74,6 +74,10 @@
       <select id="financeAttachmentKind"><option value="comprovante">Comprovante de pagamento</option><option value="recibo">Recibo</option><option value="nota_fiscal">Nota fiscal</option><option value="orcamento">Orçamento</option><option value="outro">Outro</option></select>
       <small>Os anexos serão privados; faça o envio do arquivo original pelo dispositivo.</small>
     </div>
+    <div class="finance-import admin-only" hidden><button class="button ghost" type="button" id="financeBatchUpload">Anexar vários comprovantes</button>
+      <small>Selecione os arquivos com o ID da despesa no nome. O sistema identifica automaticamente o lançamento de destino e confere cada upload.</small>
+    </div>
+    <input type="file" id="financeBatchInput" accept="application/pdf,image/jpeg,image/png,image/webp" multiple hidden>
     <input type="file" id="financeAttachmentInput" accept="application/pdf,image/jpeg,image/png,image/webp" hidden>
   </section>
   <section class="panel registers"><div class="panel-head"><div><h3>Documentos e lançamentos</h3><p id="recordCount">Carregando histórico…</p></div><span class="mini-tag">SEPARADO POR OBRA</span></div>
