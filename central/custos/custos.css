@@ -10,3 +10,75 @@
 [hidden]{display:none!important}
 .paid-fields:not([hidden]){display:flex!important;flex-direction:column;gap:7px}
 .summary-rows button{max-width:170px}
+
+
+/* RL Custos · Contas a pagar, relatórios e arquivo documental */
+.finance-panel{margin-bottom:18px}
+.finance-head{align-items:flex-start}
+.finance-head-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+.finance-indicators{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin:15px 0 21px}
+.finance-indicators>div{background:#15374a;border:1px solid #3a6071;border-radius:12px;padding:14px;min-width:0}
+.finance-indicators span{display:block;font-size:.72rem;color:#b8d0d9}
+.finance-indicators strong{display:block;font-size:clamp(1.04rem,1.6vw,1.5rem);color:#f0f8fc;margin-top:8px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.finance-tabs{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}
+.finance-tabs button{background:#14364a;color:#bfd2db;border:1px solid #376073;border-radius:9px;padding:10px 14px;font-weight:800}
+.finance-tabs button.selected,.finance-tabs button[aria-pressed="true"]{background:#b4dc63;border-color:#b4dc63;color:#102b29}
+.finance-filters{display:grid;grid-template-columns:2fr 1fr 1fr 1.15fr;gap:12px;margin-bottom:12px}
+.finance-filters>div{display:flex;flex-direction:column;gap:6px;min-width:0}
+.finance-table{margin-top:10px}
+.finance-table td:first-child{max-width:430px}
+.finance-table .finance-commands{min-width:148px}
+.finance-commands button{margin:2px 4px 2px 0}
+.finance-hint{color:#a9c0cc;font-size:.74rem;line-height:1.6}
+.finance-indicators strong:empty{color:#aac0cd}
+.badge.overdue{background:#703a38;color:#ffd0c6}
+.finance-attachment-type{display:flex;align-items:center;gap:13px;margin-top:20px;border-top:1px solid #36576b;padding-top:15px}
+.finance-attachment-type select{max-width:265px}
+.finance-attachment-type small{color:#abc5d1}
+.finance-print-head{display:none}
+@media(max-width:1050px){
+.finance-indicators{grid-template-columns:repeat(2,minmax(0,1fr))}
+.finance-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+.finance-head{display:block}.finance-head-actions{margin-top:12px}
+}
+@media(max-width:550px){
+.finance-indicators{gap:8px}
+.finance-indicators>div{padding:12px}
+.finance-indicators strong{font-size:1.08rem}
+.finance-filters{grid-template-columns:1fr}
+.finance-head-actions .button{flex:1}
+.finance-attachment-type{flex-direction:column;align-items:flex-start}
+.finance-attachment-type select{max-width:100%}
+.finance-tabs button{flex:1 1 40%}
+}
+@media print{
+body.finance-printing{background:white!important;color:#111!important}
+body.finance-printing .topbar,
+body.finance-printing .app>section:not(#financeReports),
+body.finance-printing .app>footer,
+body.finance-printing .finance-head,
+body.finance-printing .finance-filters,
+body.finance-printing .finance-tabs,
+body.finance-printing .finance-attachment-type,
+body.finance-printing .finance-hint,
+body.finance-printing .finance-commands,
+body.finance-printing #financeStatusMessage{display:none!important}
+body.finance-printing #application{display:block!important;padding:0!important}
+body.finance-printing #financeReports{display:block!important;border:0!important;box-shadow:none!important;background:#fff!important;color:#111!important;padding:0!important}
+body.finance-printing .finance-print-head{display:flex!important;align-items:center;justify-content:space-between;gap:22px;padding:0 0 18px;border-bottom:2px solid #333;margin-bottom:18px}
+body.finance-printing .finance-print-head img{width:110px;max-height:65px;object-fit:contain}
+body.finance-printing .finance-print-head div{display:flex;flex-direction:column;gap:4px}
+body.finance-printing .finance-indicators>div{background:#fff!important;color:#111!important;border:1px solid #aaa}
+body.finance-printing .finance-indicators strong,
+body.finance-printing .finance-indicators span{color:#111!important}
+body.finance-printing .finance-table{display:block!important}
+body.finance-printing .finance-table th,body.finance-printing .finance-table td{color:#111!important;border-color:#bbb}
+body.finance-printing .finance-table th{background:#f1f1f1!important}
+body.finance-printing .finance-table table{min-width:0;font-size:10px}
+body.finance-printing .finance-table .badge{background:transparent!important;color:#111!important;border:1px solid #999}
+body.finance-printing .finance-table .table-wrap{overflow:visible}
+body.finance-printing .finance-table td{font-size:10px;padding:7px}
+body.finance-printing .finance-table th{font-size:9px;padding:7px}
+body.finance-printing .finance-table table thead{display:table-header-group}
+body.finance-printing .finance-table table tr{break-inside:avoid}
+}
