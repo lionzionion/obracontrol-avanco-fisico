@@ -5,9 +5,9 @@
 <meta name="description" content="RL Engenharia — Controle de movimentação interna, destinação externa, MTR, CDF, pesagens e abastecimentos de obras.">
 <title>RL Movimentações e MTR | Engenharia</title>
 <link rel="icon" href="../../icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../custos/custos.css?v=2"><link rel="stylesheet" href="./mov.css?v=1">
+<link rel="stylesheet" href="../custos/custos.css?v=2"><link rel="stylesheet" href="./mov.css?v=1"><link rel="stylesheet" href="./diarias.css?v=1">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
-<script defer src="./mov.js?v=1"></script>
+<script defer src="./mov.js?v=1"></script><script defer src="./diarias.js?v=1"></script>
 </head>
 <body>
 <header class="topbar">
@@ -35,6 +35,7 @@
    <button class="mov-tab" data-tab="interna" type="button">Movimentação interna</button>
    <button class="mov-tab" data-tab="abastecimento" type="button">Abastecimentos</button>
    <button class="mov-tab" data-tab="frota" type="button">Caminhões e cadastros</button>
+   <button class="mov-tab" data-tab="diarias" type="button">Diárias e Fechamentos</button>
    <button class="mov-tab" data-tab="documentos" type="button">Documentos e pendências</button>
  </nav>
  <div id="notices" role="status" aria-live="polite" class="alert-list" hidden></div>
@@ -75,6 +76,54 @@
    <form id="accessForm" class="inline-form"><label for="accessUser">Colaborador</label><select id="accessUser" required></select><label for="accessPermission">Permissão</label><select id="accessPermission"><option value="view">Consulta</option><option value="write">Lançar e corrigir</option></select><button class="button primary" type="submit">Conceder acesso</button></form>
    <div id="accessList" class="mini-list"></div></article>
  </section>
+<section class="mov-panel" id="panel-diarias" hidden>
+  <article class="panel day-hero">
+    <div><span class="eyebrow">CONTROLE DE CAMINHÕES · APONTAMENTO DIÁRIO</span>
+      <h3>Diárias e fechamento por veículo</h3>
+      <p>Um lançamento por placa e data. O engenheiro informa a execução; a administração aprova e encerra o período.</p>
+    </div>
+    <div class="day-hero-actions">
+      <button class="button primary can-write" id="dailyAdd" type="button" hidden>+ Lançar diária</button>
+      <button class="button ghost admin-only" id="dailyNewRate" type="button" hidden>Configurar tarifa</button>
+      <button class="button ghost admin-only" id="dailyNewClosure" type="button" hidden>Fazer fechamento</button>
+    </div>
+  </article>
+  <section class="day-stats">
+    <article class="metric"><span>Apontamentos no período</span><strong id="dailyKpiTotal">—</strong><small>Um registro por caminhão e dia</small></article>
+    <article class="metric"><span>Para aprovação</span><strong id="dailyKpiPending">—</strong><small>Pendentes ou devolvidos</small></article>
+    <article class="metric"><span>Diárias equivalentes aprovadas</span><strong id="dailyKpiQty">—</strong><small>Inteiras, meias e disponibilidade contratada</small></article>
+    <article class="metric finance-only" hidden><span>Fechamentos emitidos</span><strong id="dailyKpiClosed">—</strong><small>Valores aprovados, ainda não pagos</small></article>
+  </section>
+  <article class="panel">
+    <div class="panel-head"><div><h3>Apontamentos dos caminhões</h3><p>Escolha o período. Para lançar: selecione a placa, a data e o tipo de diária.</p></div>
+      <span class="mini-tag" id="dailyAccessNote">Acesso por obra</span></div>
+    <div class="day-filters">
+      <label>De <input id="dailyFrom" type="date"></label>
+      <label>Até <input id="dailyTo" type="date"></label>
+      <label>Caminhão <select id="dailyPlateFilter"><option value="all">Todos</option></select></label>
+      <label>Situação <select id="dailyReviewFilter"><option value="all">Todas</option><option value="pendente">Pendente</option><option value="devolvido">Devolvida</option><option value="aprovado">Aprovada</option><option value="fechada">Fechada</option></select></label>
+      <button class="button ghost" type="button" id="dailyFilterReset">Últimos 30 dias</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Data</th><th>Placa / motorista</th><th>Tipo</th><th>Responsável</th><th>Situação</th><th>Observação</th><th></th></tr></thead>
+      <tbody id="dailyRows"><tr><td colspan="7" class="empty">Carregando diárias…</td></tr></tbody></table>
+    </div>
+    <p class="table-foot" id="dailyCount">Nenhuma diária contabilizada automaticamente por viagens.</p>
+  </article>
+  <article class="panel finance-only" id="dailyFinancialPanel" hidden>
+    <div class="panel-head"><div><h3>Fechamentos dos caminhões</h3><p>Períodos encerrados com cálculo por tarifa vigente e histórico imutável de valores.</p></div>
+      <span class="mini-tag">ADMINISTRAÇÃO / DIRETORIA</span></div>
+    <div class="table-wrap"><table><thead><tr><th>Caminhão</th><th>Período</th><th class="right">Diárias equivalentes</th><th class="right">Subtotal</th><th class="right">Ajustes</th><th class="right">Total</th><th></th></tr></thead>
+      <tbody id="dailyClosuresRows"><tr><td colspan="7" class="empty">Nenhum fechamento emitido.</td></tr></tbody></table></div>
+    <p class="table-foot">Fechamento aprovado ≠ despesa paga. Valores não são lançados automaticamente no RL Custos.</p>
+  </article>
+  <article class="panel finance-only" id="dailyRatesPanel" hidden>
+    <div class="panel-head"><div><h3>Tabela de diárias contratadas</h3><p>Valores vigentes por caminhão e data. Alterações futuras não modificam períodos já fechados.</p></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Caminhão</th><th>Vigência a partir de</th><th class="right">Diária integral</th><th>Disponibilidade</th><th>Contrato / fornecedor</th></tr></thead>
+      <tbody id="dailyRatesRows"></tbody></table></div>
+    <p class="budget-note">Nenhuma tarifa foi presumida. Cadastre o valor contratado para permitir o primeiro fechamento.</p>
+  </article>
+</section>
  <section class="mov-panel" id="panel-documentos" hidden>
   <article class="panel"><div class="panel-head"><div><h3>Pendências para conferência</h3><p>Resíduos, documentação, placas e notas fiscais.</p></div></div><div id="pendingCards" class="pending-grid"></div></article>
   <article class="panel"><div class="panel-head"><div><h3>Arquivos vinculados</h3><p>MTRs, tickets, CDFs, notas e fotografias armazenados em bucket privado.</p></div></div><div id="fileList" class="compact-list"></div><div class="info-strip">Os números importados da planilha não significam que os arquivos PDF foram anexados. Faça o upload dos documentos originais na viagem ou abastecimento correspondente.</div></article>
@@ -83,5 +132,70 @@
 </div>
 <dialog id="detailDialog" class="dialog"><div class="dialog-content large"><div class="dialog-header"><div><span class="eyebrow">REGISTRO DA OBRA</span><h2 id="detailTitle">Detalhamento</h2></div><button class="close" data-close="detailDialog" type="button" aria-label="Fechar">×</button></div><div id="detailBody"></div><div id="detailControls" class="detail-actions can-write" hidden><select id="docKind" aria-label="Tipo de documento"><option value="mtr">MTR</option><option value="ticket">Ticket de pesagem</option><option value="cdf">CDF</option><option value="nf">Nota fiscal</option><option value="foto">Fotografia</option><option value="outro">Outro documento</option></select><input id="docInput" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"><button class="button ghost" id="sendDoc" type="button">Anexar arquivo</button></div><div id="cdfFormWrapper" class="detail-section can-write" hidden><h3>Registrar CDF recebido</h3><form id="cdfForm" class="inline-form"><label for="cdfNumber">Nº CDF</label><input id="cdfNumber" required><label for="cdfDate">Data CDF</label><input id="cdfDate" type="date" required><button class="button primary" type="submit">Confirmar CDF (após anexar arquivo)</button></form></div></div></dialog>
 <dialog id="entryDialog" class="dialog"><form id="entryForm" class="dialog-content"><div class="dialog-header"><div><span class="eyebrow">NOVO APONTAMENTO</span><h2 id="entryTitle">Registro</h2></div><button class="close" data-close="entryDialog" type="button" aria-label="Fechar">×</button></div><div id="entryFields" class="form-grid"></div><p class="error" id="entryError"></p><div class="form-actions"><button class="button ghost" type="button" data-close="entryDialog">Cancelar</button><button class="button primary" id="entrySubmit" type="submit">Salvar no Supabase</button></div></form></dialog>
+
+<dialog id="dailyLogDialog" class="dialog">
+ <form id="dailyLogForm" class="dialog-content daily-dialog">
+  <div class="dialog-header"><div><span class="eyebrow">ENGENHARIA DE CAMPO</span><h2 id="dailyLogHeading">Lançar diária</h2></div>
+   <button class="close" data-close="dailyLogDialog" type="button" aria-label="Fechar">×</button></div>
+  <div class="daily-dialog-fields">
+   <label for="dailyVehicle">Caminhão</label><select id="dailyVehicle" required></select>
+   <label for="dailyDate">Data da diária</label><input id="dailyDate" type="date" required>
+   <label for="dailyDriver">Motorista</label><input id="dailyDriver" type="text" maxlength="150" placeholder="Nome do motorista">
+   <label>Tipo de diária</label>
+   <div class="daily-types" role="radiogroup" aria-label="Tipo de diária">
+    <label><input type="radio" name="dailyType" value="inteira" checked><span><b>1 diária</b><small>Dia inteiro</small></span></label>
+    <label><input type="radio" name="dailyType" value="meia"><span><b>½ diária</b><small>Meio período</small></span></label>
+    <label><input type="radio" name="dailyType" value="disposicao"><span><b>À disposição</b><small>Sujeita ao contrato</small></span></label>
+    <label><input type="radio" name="dailyType" value="nao_trabalhou"><span><b>Não trabalhou</b><small>Não faturável</small></span></label>
+   </div>
+   <label for="dailyNote">Atividade, local, ocorrência e observações</label>
+   <textarea id="dailyNote" rows="3" maxlength="2000" placeholder="Descreva onde o caminhão atuou e qualquer ocorrência."></textarea>
+   <label for="dailyPhoto">Foto ou comprovante (opcional)</label><input id="dailyPhoto" type="file" accept="image/jpeg,image/png,image/webp,application/pdf">
+   <small class="form-hint">O lançamento será enviado para conferência. Não gera pagamento automaticamente.</small>
+  </div>
+  <p id="dailyLogError" class="error" role="alert"></p>
+  <div class="form-actions"><button class="button ghost" data-close="dailyLogDialog" type="button">Cancelar</button><button id="dailyLogSave" class="button primary" type="submit">Salvar diária</button></div>
+ </form>
+</dialog>
+<dialog id="dailyRateDialog" class="dialog">
+ <form id="dailyRateForm" class="dialog-content daily-dialog">
+  <div class="dialog-header"><div><span class="eyebrow">ADMINISTRAÇÃO / CONTRATOS</span><h2>Tarifa contratada do caminhão</h2></div>
+    <button class="close" data-close="dailyRateDialog" type="button">×</button></div>
+  <div class="daily-dialog-fields">
+   <label for="dailyRateVehicle">Caminhão</label><select id="dailyRateVehicle" required></select>
+   <label for="dailyRateDate">Vigência inicial</label><input id="dailyRateDate" type="date" required>
+   <label for="dailyRateValue">Valor da diária integral (R$)</label><input id="dailyRateValue" type="number" min="0.01" step="0.01" required placeholder="Informe valor do contrato">
+   <label for="dailyRateStandby">Fator de disponibilidade (opcional)</label>
+   <select id="dailyRateStandby"><option value="">Não definido — bloqueia fechamento com disponibilidade</option><option value="0">0% — sem cobrança</option><option value="0.5">50% da diária</option><option value="1">100% da diária</option></select>
+   <small class="form-hint">Quando houver cobrança específica diferente, registre e justifique no fechamento, conforme contrato.</small>
+   <label for="dailyRateSupplier">Transportadora / fornecedor</label><input id="dailyRateSupplier" type="text" maxlength="180">
+   <label for="dailyRateContract">Contrato / pedido / referência</label><input id="dailyRateContract" type="text" maxlength="180">
+   <label for="dailyRateNotes">Observações</label><textarea id="dailyRateNotes" rows="2"></textarea>
+  </div><p class="error" id="dailyRateError"></p>
+  <div class="form-actions"><button type="button" class="button ghost" data-close="dailyRateDialog">Cancelar</button><button id="dailyRateSave" class="button primary" type="submit">Salvar tarifa</button></div>
+ </form>
+</dialog>
+<dialog id="dailyClosureDialog" class="dialog">
+ <form id="dailyClosureForm" class="dialog-content daily-dialog">
+  <div class="dialog-header"><div><span class="eyebrow">CONFERÊNCIA E FECHAMENTO</span><h2>Fechamento por caminhão</h2></div>
+    <button class="close" data-close="dailyClosureDialog" type="button">×</button></div>
+  <div class="daily-dialog-fields">
+   <label for="dailyCloseVehicle">Caminhão</label><select id="dailyCloseVehicle" required></select>
+   <div class="two-date"><label>Data inicial <input id="dailyCloseFrom" type="date" required></label><label>Data final <input id="dailyCloseTo" type="date" required></label></div>
+   <div class="two-date"><label>Adicionais aprovados (R$) <input id="dailyCloseExtras" type="number" min="0" step="0.01" value="0"></label><label>Descontos (R$) <input id="dailyCloseDiscounts" type="number" min="0" step="0.01" value="0"></label></div>
+   <label for="dailyCloseNote">Justificativa dos adicionais, descontos e observações</label><textarea id="dailyCloseNote" rows="2"></textarea>
+   <div id="dailyClosePreview" class="daily-preview" aria-live="polite">Selecione um caminhão e o período para conferir os apontamentos.</div>
+   <label class="daily-check"><input type="checkbox" id="dailyCloseAgree"> Confirmo a conferência dos apontamentos e valores conforme contrato.</label>
+  </div><p class="error" id="dailyCloseError"></p>
+  <div class="form-actions"><button type="button" class="button ghost" data-close="dailyClosureDialog">Cancelar</button><button id="dailyCloseSave" class="button primary" type="submit">Aprovar e fechar período</button></div>
+ </form>
+</dialog>
+<dialog id="dailyDetailsDialog" class="dialog">
+ <div class="dialog-content large">
+  <div class="dialog-header"><div><span class="eyebrow">DIÁRIAS · HISTÓRICO</span><h2 id="dailyDetailsTitle">Detalhes</h2></div><button class="close" data-close="dailyDetailsDialog" type="button">×</button></div>
+  <div id="dailyDetailsBody"></div><div class="detail-actions" id="dailyDetailsActions"></div>
+ </div>
+</dialog>
+<div id="dailyPrintRoot" hidden></div>
 <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
 </body></html>
