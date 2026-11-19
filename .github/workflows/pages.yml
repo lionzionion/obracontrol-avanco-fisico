@@ -56,10 +56,15 @@ jobs:
           node --check central/ui-icons.js
           node --check central/rdo-board.js
           node --check central/costs-overview.js
+          node --check central/mov-overview.js
+          node --check central/movimentacoes/mov.js
+          node central/movimentacoes/tests/smoke.test.cjs
           node --check central/custos/custos.js
           node central/custos/tests/smoke.test.cjs
           test -s central/custos/index.html
           test -s central/custos/custos.css
+          test -s central/movimentacoes/index.html
+          test -s central/movimentacoes/mov.css
           test -s central/rdo-board.css
           node <<'NODE'
           const fs=require('node:fs');
@@ -83,7 +88,9 @@ jobs:
           grep -q 'rdo-board.js' central/index.html
           grep -q 'rdo-board.css' central/index.html
           grep -q 'costs-overview.js' central/index.html
+          grep -q 'mov-overview.js' central/index.html
           grep -q 'data-app="custos"' central/index.html
+          grep -q 'data-app="movimentacoes"' central/index.html
           grep -q 'premium.css' central/index.html
           grep -q 'id="focusServiceSelect"' central/index.html
           grep -q 'id="dailyServiceSelect"' central/index.html
