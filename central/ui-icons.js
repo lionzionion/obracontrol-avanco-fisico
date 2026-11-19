@@ -23,6 +23,7 @@
     check:'<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
     ruler:'<path d="m3 17 14-14 4 4L7 21l-4-4Z"/><path d="m11 9 2 2m1-5 2 2m-8 4 2 2"/>',
     chart:'<path d="M3 20h18M5 18V9m5 9V5m5 13v-6m5 6V8"/>',
+    truck:'<path d="M2 7h12v10H2zM14 10h4l4 4v3h-8z"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><path d="M14 17H8"/>',
     target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
     access:'<rect x="4" y="9" width="16" height="12" rx="2"/><path d="M8 9V6a4 4 0 1 1 8 0v3"/><circle cx="12" cy="15" r="1"/>',
     lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>'
@@ -38,7 +39,7 @@
   document.querySelectorAll('#screen-overview .kpi .kpi-label > span').forEach((node,i)=>{
     node.classList.add('kpi-symbol');node.innerHTML=icon(labels[i]||'layers');
   });
-  const appIcons={obras:'production',pedidos:'food',custos:'chart'};
+  const appIcons={obras:'production',pedidos:'food',custos:'chart',movimentacoes:'truck'};
   for(const node of document.querySelectorAll('[data-icon]')){
     node.innerHTML=icon(node.dataset.icon);
   }
