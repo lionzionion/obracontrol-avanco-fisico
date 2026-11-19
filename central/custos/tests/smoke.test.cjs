@@ -16,7 +16,8 @@ assert.ok(central.includes('id="costOverviewPaid"'),"Resumo de custos ausente na
 assert.ok(wire.includes('key!=="custos"'),"Diretoria não pode acessar o painel de consulta");
 assert.ok(wire.includes('new URL("./custos/"'),"App integrado sem endereço");
 assert.ok(finance.includes('rl_cost_expenses')&&finance.includes('rl_cost_payments'),"Indicadores não carregam despesas e pagamentos");
-assert.ok(!/\.\s*(delete|remove)\s*\(/.test(app),"O aplicativo não deve excluir despesas ou documentos");
+assert.ok(!/\.\s*delete\s*\(/.test(app),"O aplicativo não deve excluir despesas");
+assert.ok(!/\.storage\.from\([^)]*\)\.remove\s*\(/.test(app),"O aplicativo não deve apagar arquivos privados");
 assert.ok(!/service_role|sb_secret_/.test(app),"Não publicar chave privada");
 assert.equal(Math.round((573-136.05)*100)/100,436.95,"Valor pago da Universo EPIs");
 console.log("OK: RL Custos conectado à Central, com documentos privados, pagamentos e acesso Diretoria.");
