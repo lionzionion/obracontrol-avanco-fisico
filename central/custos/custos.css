@@ -82,3 +82,8 @@ body.finance-printing .finance-table th{font-size:9px;padding:7px}
 body.finance-printing .finance-table table thead{display:table-header-group}
 body.finance-printing .finance-table table tr{break-inside:avoid}
 }
+
+.finance-import{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin:13px 0;border:1px dashed #486f7e;background:#153447;border-radius:12px;padding:13px}
+.finance-import small{color:#accbd4;flex:1 1 280px;line-height:1.5}
+@media(max-width:550px){.finance-import .button{width:100%}}
+@media print{body.finance-printing .finance-import{display:none!important}}
