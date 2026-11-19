@@ -38,7 +38,7 @@
   document.querySelectorAll('#screen-overview .kpi .kpi-label > span').forEach((node,i)=>{
     node.classList.add('kpi-symbol');node.innerHTML=icon(labels[i]||'layers');
   });
-  const appIcons={obras:'production',pedidos:'food'};
+  const appIcons={obras:'production',pedidos:'food',custos:'chart'};
   for(const node of document.querySelectorAll('[data-icon]')){
     node.innerHTML=icon(node.dataset.icon);
   }
