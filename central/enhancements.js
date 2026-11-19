@@ -146,12 +146,13 @@
   const apps={
     obras:{url:new URL("../",location.href).href,title:"ObraControl",description:"Produção, medições, fotos e lançamentos"},
     pedidos:{url:new URL("../../pedidos-almoco-Rlconstrucoes/app/",location.href).href,title:"RL Pedidos",description:"Gestão de refeições, restaurante e colaboradores"},
-    custos:{url:new URL("./custos/",location.href).href,title:"RL Custos de Obras",description:"Controle financeiro, documentos, despesas e pagamentos por obra"}
+    custos:{url:new URL("./custos/",location.href).href,title:"RL Custos de Obras",description:"Controle financeiro, documentos, despesas e pagamentos por obra"},
+    movimentacoes:{url:new URL("./movimentacoes/",location.href).href,title:"RL Movimentações e MTR",description:"Destinação externa, materiais internos, pesagens, CDFs e frota"}
   };
   function openApp(key){
     // Diretoria consulta os mesmos dados dentro da Central, sem abrir ferramentas
     // operacionais que permitiriam lançamentos ou alterações.
-    if(document.body.classList.contains("viewer")&&key!=="custos"){
+    if(document.body.classList.contains("viewer")&&key!=="custos"&&key!=="movimentacoes"){
       const section=key==="obras"?"production":"food";
       document.querySelector('.nav-btn[data-screen="'+section+'"]')?.click();
       return;
@@ -163,7 +164,7 @@
     $("main").hidden=true;$("workspace").hidden=false;
     $("workTitle").textContent=entry.title;
     $("workSubtitle").textContent=entry.description+" · Sessão compartilhada";
-    if(window.RL_CENTRAL_ICONS?.icon)$("workIcon").innerHTML=window.RL_CENTRAL_ICONS.icon(key==="obras"?"production":key==="custos"?"chart":"food");
+    if(window.RL_CENTRAL_ICONS?.icon)$("workIcon").innerHTML=window.RL_CENTRAL_ICONS.icon(key==="obras"?"production":key==="custos"?"chart":key==="movimentacoes"?"truck":"food");
     frame.title=entry.title+" dentro da Central";
     if(frame.getAttribute("src")!==entry.url)frame.src=entry.url;
     $("workExternal").href=entry.url;
@@ -185,6 +186,7 @@
     $("dailyServiceSelect").addEventListener("change",e=>{selectedDaily=e.target.value;renderDaily();});
     document.querySelectorAll(".app-button[data-app]").forEach(node=>node.addEventListener("click",()=>openApp(node.dataset.app)));
     $("openCostsFromOverview")?.addEventListener("click",()=>openApp("custos"));
+    $("openMovFromOverview")?.addEventListener("click",()=>openApp("movimentacoes"));
     $("workBack").addEventListener("click",closeApp);
     $("logoutBtn").addEventListener("click",()=>{$("workFrame").removeAttribute("src");$("workspace").hidden=true;$("main").hidden=false;});
   }
