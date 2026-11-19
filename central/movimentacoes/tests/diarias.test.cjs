@@ -24,7 +24,9 @@ for(const id of ["panel-diarias","dailyAdd","dailyNewRate","dailyNewClosure","da
 for(const item of ['value="inteira"','value="meia"','value="disposicao"','value="nao_trabalhou"']){
  assert.ok(html.includes(item),"Daily type missing: "+item);
 }
-assert.ok(html.includes('src="./diarias.js?v=1"'),"Daily JS missing from page");
+assert.ok(html.includes('src="./diarias.js?v=2"'),"Daily JS missing from page");
+assert.ok(!js.includes('closure_id,created_at","work_date"'),"Daily logs must not request missing created_at column");
+assert.ok(js.includes('closure_id,updated_at","work_date"'),"Daily logs must use existing updated_at column");
 assert.ok(html.includes('href="./diarias.css?v=1"'),"Daily styles missing from page");
 assert.ok(app.includes('window.RL_MOV_CORE=Object.freeze'),"Core bridge missing");
 assert.ok(app.includes('RL_MOV_DAILY?.load?.(st.workId)'),"Work switching must refresh daily data");
