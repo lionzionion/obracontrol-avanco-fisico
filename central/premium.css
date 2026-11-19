@@ -269,3 +269,16 @@ body{background:radial-gradient(circle at 72% -12%,rgba(40,102,123,.11),transpar
   .sidebar .sidebar-integrations .app-button{flex-basis:100%}
 }
 @media print{.sidebar-scroll,.sidebar-integrations{display:none!important}}
+
+/* RL Custos — destaque financeiro por obra dentro da visão executiva. */
+.costs-quick-panel{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:0 0 18px;padding:18px 22px;background:linear-gradient(110deg,#102f43,#154152);border:1px solid #346579;border-radius:15px}
+.costs-quick-panel h2{font-size:1rem;margin:5px 0 3px;color:#f1f8fc}
+.costs-quick-panel p{font-size:.75rem;color:#a5c6d0;margin:0;max-width:360px}
+.costs-quick-metrics{display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap}
+.costs-quick-metrics>div{min-width:155px}
+.costs-quick-metrics small{display:block;color:#9cbdc9;font-size:.64rem;font-weight:800;letter-spacing:.04em}
+.costs-quick-metrics strong{display:block;color:#e8f9f9;font-size:1.3rem;margin-top:5px;font-variant-numeric:tabular-nums}
+.costs-quick-panel .btn{flex-shrink:0}
+@media(max-width:1180px){.costs-quick-panel{flex-wrap:wrap}.costs-quick-panel>.btn{margin-left:auto}}
+@media(max-width:690px){.costs-quick-panel{padding:16px;align-items:flex-start}.costs-quick-metrics{justify-content:space-between;gap:9px;width:100%}.costs-quick-metrics>div{min-width:0;flex:1}.costs-quick-metrics strong{font-size:1.12rem}.costs-quick-panel .btn{width:100%}}
+@media print{.costs-quick-panel{display:none!important}}
