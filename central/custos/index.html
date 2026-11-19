@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07182b">
+<meta name="description" content="RL Custos | Gestão financeira das obras da RL Engenharia.">
+<title>RL Custos | Controle de Custos de Obras</title>
+<link rel="icon" href="../../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./custos.css?v=1">
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script defer src="./custos.js?v=1"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><img src="../../assets/rl-logo.svg" alt="RL Engenharia"><div><span class="kicker">RL ENGENHARIA · FAZENDO ACONTECER</span><h1>Custos de Obras</h1></div></div>
+  <div class="topactions"><span id="connectionStatus" class="status">Verificando acesso…</span><a class="back" href="../">← Central de Obras</a></div>
+</header>
+<div id="authScreen" class="auth-screen" hidden>
+  <div class="auth-card"><img src="../../assets/rl-logo.svg" alt="RL Engenharia"><h2>Acesso protegido</h2>
+  <p>Entre com sua conta autorizada na RL Central de Obras. O módulo financeiro utiliza a mesma autenticação, sem criar uma segunda senha.</p>
+  <a href="../" class="button primary">Acessar pela Central</a></div>
+</div>
+<div id="application" class="app" hidden>
+  <section class="heading"><div><div class="eyebrow">DASHBOARD FINANCEIRO · RL ENGENHARIA</div><h2>Controle de custos</h2><p>Compras, despesas, pagamentos e documentos de cada obra, com rastreabilidade e permissões.</p></div>
+  <div class="heading-actions"><button class="button ghost" id="refresh" type="button">↻ Atualizar</button><button class="button ghost admin-only" id="newWork" type="button" hidden>+ Nova obra</button><button class="button primary admin-only" id="newExpense" type="button" hidden>+ Novo lançamento</button></div></section>
+  <section class="workbox"><label for="workFilter">OBRA SELECIONADA</label><select id="workFilter" aria-label="Selecionar obra"></select><div class="work-meta"><span id="workLocation">—</span><span id="workBudgetStatus">—</span></div></section>
+  <section class="metrics" aria-label="Indicadores de custos">
+    <article class="metric"><span>Valor contratual</span><strong id="contractValue">—</strong><small>Receita prevista do contrato, não orçamento de gastos</small></article>
+    <article class="metric"><span>Despesas realizadas</span><strong id="realizedValue">—</strong><small>Compras e serviços reconhecidos</small></article>
+    <article class="metric"><span>Pagamentos registrados</span><strong id="paidValue">—</strong><small>Valores confirmados como pagos</small></article>
+    <article class="metric"><span>Despesas a pagar</span><strong id="payableValue">—</strong><small>Saldo de despesas realizadas não quitadas</small></article>
+  </section>
+  <section class="summary-grid">
+    <article class="panel"><div class="panel-head"><div><h3>Situação financeira da obra</h3><p>Despesas realizadas e comprovadamente registradas como pagas.</p></div></div>
+      <div class="summary-rows"><div><span>Pagamentos registrados</span><b id="summaryPaid">—</b></div><div><span>Compromissos autorizados</span><b id="summaryApproved">—</b></div><div><span>Cotações não aprovadas</span><b id="summaryQuotes">—</b></div><div><span>Meta interna de custos</span><b id="summaryBudget">—</b></div></div>
+      <div class="budget-note" id="budgetNote">A meta de custos deve ser aprovada antes de apresentar margem ou saldo orçamentário.</div>
+    </article>
+    <article class="panel"><div class="panel-head"><div><h3>Despesas por categoria</h3><p>Participação no custo realizado (sem duplicar pagamentos).</p></div></div><div id="categoriesChart" class="categories-chart"></div></article>
+  </section>
+  <section class="panel registers"><div class="panel-head"><div><h3>Documentos e lançamentos</h3><p id="recordCount">Carregando histórico…</p></div><span class="mini-tag">SEPARADO POR OBRA</span></div>
+    <div class="filters"><div><label for="searchFilter">Buscar</label><input id="searchFilter" type="search" placeholder="Fornecedor, nº documento, descrição…"></div><div><label for="statusFilter">Situação</label><select id="statusFilter"><option value="all">Todas</option><option value="realizada">Despesa realizada</option><option value="autorizada">Compra autorizada</option><option value="cotacao">Cotação</option><option value="cancelada">Cancelada</option></select></div><div><label for="categoryFilter">Categoria</label><select id="categoryFilter"><option value="all">Todas as categorias</option></select></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Fornecedor / Documento</th><th>Categoria</th><th>Data documento</th><th>Estado</th><th class="right">Valor</th><th class="right">Pago</th><th></th></tr></thead><tbody id="expenseRows"><tr><td colspan="7" class="empty">Carregando…</td></tr></tbody></table></div>
+  </section>
+  <footer>RL ENGENHARIA · CONTROLE FINANCEIRO POR OBRA · Valores em reais (BRL)</footer>
+</div>
+<dialog id="detailDialog" class="dialog"><div class="dialog-content large"><div class="dialog-header"><div><span class="eyebrow">DOCUMENTO FINANCEIRO</span><h2 id="detailTitle">Despesa</h2></div><button class="close" type="button" data-close="detailDialog" aria-label="Fechar">×</button></div>
+  <div id="detailBody"></div>
+  <div class="detail-actions admin-only" id="detailAdmin" hidden><button type="button" class="button ghost" id="attachButton">Anexar documento</button><button type="button" class="button primary" id="paymentButton">Registrar pagamento</button><input id="attachmentInput" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" hidden></div>
+</div></dialog>
+<dialog id="expenseDialog" class="dialog"><form id="expenseForm" class="dialog-content"><div class="dialog-header"><div><span class="eyebrow">NOVO LANÇAMENTO</span><h2>Registrar custo</h2></div><button class="close" type="button" data-close="expenseDialog" aria-label="Fechar">×</button></div>
+  <div class="form-grid">
+    <div class="span2"><label for="expenseSupplier">Fornecedor *</label><input id="expenseSupplier" maxlength="150" required></div>
+    <div><label for="expenseDocument">Nº documento</label><input id="expenseDocument" maxlength="80" placeholder="Ex.: 42322"></div>
+    <div><label for="expenseDocType">Tipo de documento</label><select id="expenseDocType"><option value="orcamento">Orçamento</option><option value="nota_fiscal">Nota fiscal</option><option value="recibo">Recibo</option><option value="fatura">Fatura</option><option value="outro">Outro</option></select></div>
+    <div><label for="expenseCategory">Categoria *</label><select id="expenseCategory"><option>Segurança do trabalho / EPI</option><option>Materiais</option><option>Mão de obra</option><option>Equipamentos e locação</option><option>Combustível</option><option>Transporte e logística</option><option>Alimentação e hospedagem</option><option>Serviços terceirizados</option><option>Administração</option><option>Outros</option></select></div>
+    <div><label for="expenseIssueDate">Data do documento</label><input id="expenseIssueDate" type="date"></div>
+    <div class="span2"><label for="expenseDescription">Descrição *</label><input id="expenseDescription" maxlength="500" required placeholder="O que foi adquirido ou executado"></div>
+    <div><label for="expenseGross">Valor bruto (R$) *</label><input id="expenseGross" type="number" step="0.01" min="0.01" required></div>
+    <div><label for="expenseDiscount">Desconto (R$)</label><input id="expenseDiscount" type="number" step="0.01" min="0" value="0"></div>
+    <div><label for="expenseFreight">Frete (R$)</label><input id="expenseFreight" type="number" step="0.01" min="0" value="0"></div>
+    <div><label for="expenseStatus">Situação *</label><select id="expenseStatus"><option value="cotacao">Cotação (não é despesa)</option><option value="autorizada">Compra autorizada</option><option value="realizada">Despesa realizada</option></select></div>
+    <div class="span2"><label class="checkbox-label"><input id="expensePaid" type="checkbox"> Já foi pago integralmente</label><small>Somente para despesa realizada. Se não souber a data do pagamento, deixe em branco.</small></div>
+    <div id="paidFields" class="span2 paid-fields" hidden><label for="expensePaidDate">Data efetiva do pagamento (opcional)</label><input id="expensePaidDate" type="date"><label for="expensePaidMethod">Meio de pagamento (opcional)</label><input id="expensePaidMethod" maxlength="100" placeholder="PIX, depósito, transferência…"></div>
+    <div class="span2"><label for="expenseNote">Observações</label><textarea id="expenseNote" rows="3" maxlength="2000"></textarea></div>
+    <div class="span2"><label for="expenseFile">Anexar orçamento, recibo, NF ou comprovante (PDF/imagem)</label><input id="expenseFile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"></div>
+  </div>
+  <p id="expenseError" class="error" role="alert"></p>
+  <div class="form-actions"><button class="button ghost" type="button" data-close="expenseDialog">Cancelar</button><button class="button primary" type="submit" id="expenseSubmit">Salvar lançamento</button></div></form></dialog>
+<dialog id="paymentDialog" class="dialog"><form id="paymentForm" class="dialog-content small"><div class="dialog-header"><h2>Registrar pagamento</h2><button class="close" type="button" data-close="paymentDialog">×</button></div>
+  <p id="paymentContext"></p><label for="paymentAmount">Valor pago (R$)</label><input id="paymentAmount" type="number" min="0.01" step="0.01" required>
+  <label for="paymentDate">Data efetiva (opcional)</label><input id="paymentDate" type="date">
+  <label for="paymentMethod">Meio de pagamento</label><input id="paymentMethod" maxlength="100" placeholder="PIX, depósito, transferência…">
+  <p id="paymentError" class="error"></p><div class="form-actions"><button type="button" class="button ghost" data-close="paymentDialog">Cancelar</button><button type="submit" class="button primary" id="paymentSubmit">Confirmar pagamento</button></div></form></dialog>
+<dialog id="workDialog" class="dialog"><form id="workForm" class="dialog-content small"><div class="dialog-header"><h2>Cadastrar nova obra</h2><button class="close" type="button" data-close="workDialog">×</button></div>
+  <label for="workName">Nome da obra *</label><input id="workName" maxlength="180" required>
+  <label for="workCity">Cidade</label><input id="workCity" maxlength="100">
+  <label for="workState">UF</label><input id="workState" maxlength="2" placeholder="PE">
+  <label for="workContract">Valor contratual (R$)</label><input id="workContract" min="0" step="0.01" type="number">
+  <p id="workError" class="error"></p><div class="form-actions"><button type="button" class="button ghost" data-close="workDialog">Cancelar</button><button type="submit" class="button primary" id="workSubmit">Cadastrar obra</button></div></form></dialog>
+<div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
+</body></html>
