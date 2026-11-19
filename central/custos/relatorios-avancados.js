@@ -127,10 +127,10 @@ function reportMonthly(d){
  const fmtMonth=key=>key==="Sem data"?key:new Date(key+"-01T12:00:00").toLocaleDateString("pt-BR",{month:"short",year:"numeric"});
  const total=(name)=>num(arr.reduce((a,m)=>a+m[name],0));
  return {
-  columns:cols("Mês",col("Despesas reconhecidas","money"),col("Pagamentos","money"),col("Saldo com vencimento","money"),col("Despesas","count"),col("Pagamentos","count")),
+  columns:cols("Mês",col("Despesas reconhecidas","money"),col("Pagamentos","money"),col("Saldo por vencimento","money"),col("Despesas","count"),col("Pagamentos","count")),
   rows:arr.map(m=>[fmtMonth(m.month),num(m.realized),num(m.paid),num(m.due),m.documents,m.payments]),
   numericColumns:[1,2,3,4,5],
-  kpis:[["Competência",total("realized")],["Caixa pago",total("paid")],["A vencer por data",total("due")],["Meses exibidos",arr.length,"count"]],
+  kpis:[["Competência",total("realized")],["Caixa pago",total("paid")],["Saldo por vencimento",total("due")],["Meses exibidos",arr.length,"count"]],
   bars:arr.filter(x=>x.month!=="Sem data").map(x=>({label:fmtMonth(x.month),value:x.realized,secondary:x.paid})),
   foot:"Despesas por data do documento; pagamentos por data de quitação; saldo em aberto agrupado pelo vencimento. São séries distintas e não devem ser subtraídas mês a mês para apurar lucro. Valores sem data aparecem apenas quando não há filtro de período."
  };
@@ -195,7 +195,7 @@ function printSubtitle(d){
  ].join(" | ");
 }
 function render(){
- const d=build();if(!d)return;
+ let d=build();if(!d)return;
  const suppliers=[...new Set(d.exp.map(e=>norm(e.supplier)))].sort((a,b)=>a.localeCompare(b,"pt-BR")).map(v=>({value:v,label:v}));
  const cats=[...new Set(d.exp.map(e=>e.category))].filter(Boolean).sort((a,b)=>a.localeCompare(b,"pt-BR")).map(v=>({value:v,label:v}));
  // Sempre obter opções de todos os lançamentos no escopo, independentemente dos filtros correntes.
@@ -205,6 +205,10 @@ function render(){
  const allCats=[...new Set(allInScope.map(e=>e.category))].filter(Boolean).sort((a,b)=>a.localeCompare(b,"pt-BR")).map(v=>({value:v,label:v}));
  refreshOptions("reportsSupplier",allSuppliers,state.supplier);
  refreshOptions("reportsCategory",allCats,state.category);
+ // Se a troca de obra invalidou um filtro, o seletor e os números devem coincidir.
+ state.supplier=$("reportsSupplier").value;
+ state.category=$("reportsCategory").value;
+ d=build();
  const result=factories[state.kind](d);
  state.result={...result,context:d};
  $("reportsTitle").textContent=titles[state.kind];
