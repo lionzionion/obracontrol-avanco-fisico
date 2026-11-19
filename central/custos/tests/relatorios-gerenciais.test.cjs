@@ -66,9 +66,11 @@ assert.match(element("reportsNote").textContent,/2/,"Deve registrar documentos a
 events["reportsKinds:click"]({target:{closest:()=>({dataset:{reportKind:"mensal"}})}});
 const monthly=element("reportsTable").innerHTML;
 assert.match(monthly,/nov\./i,"Competência de novembro ausente");
-assert.doesNotMatch(monthly,/dez\./i,"Pagamentos da Ambev não podem entrar no Planalto");
+assert.match(monthly,/dez\./i,"Parcela da JP com vencimento em dezembro deve aparecer");
+assert.match(monthly,/41\.488,16/,"Saldo por vencimento de dezembro incorreto");
+assert.doesNotMatch(monthly,/R\$\s*50,00/,"Pagamento da Ambev não pode entrar no Planalto");
 assert.match(monthly,/83\.492,79/,"Competência no mês incorreta");
 events["reportsKinds:click"]({target:{closest:()=>({dataset:{reportKind:"pendencias"}})}});
 assert.match(element("reportsTable").innerHTML,/Arquivo ausente/);
-assert.match(element("reportsTable").innerHTML,/Sem vencimento/);
+assert.match(element("reportsTable").innerHTML,/JP PREMOLDADOS/);
 console.log("OK: relatórios gerenciais respeitam obra, cotações, pagamentos e documentos.");
