@@ -41,7 +41,7 @@ for(const text of ["rl_mov_daily_logs","rl_mov_daily_rates","rl_mov_daily_closur
 }
 assert.ok(css.includes("body.daily-print-mode #dailyPrintRoot"),"Branded printable closing absent");
 assert.ok(!/service_role|sb_secret_|private_key/.test(js),"Private credential in public JS");
-assert.ok(!/\\.storage\\.from\\([^)]*\\)\\.getPublicUrl\\(/.test(js),"Documents must not become public");
+assert.ok(!js.includes(".getPublicUrl("),"Documents must not become public");
 const round=n=>Math.round(n*100)/100;
 const total=round(round(900*1)+round(900*.5)+100-50);
 assert.equal(total,1400,"Full+half calculation with extras/discount incorrect");
