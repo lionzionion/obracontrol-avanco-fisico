@@ -142,8 +142,13 @@
               <div><small>VIAGENS</small><strong id="movOverviewTrips">—</strong></div>
               <div><small>CDF PENDENTES</small><strong id="movOverviewPending">—</strong></div>
               <div><small>DIVERGÊNCIAS</small><strong id="movOverviewMismatch">—</strong></div>
+              <div><small>DIÁRIAS P/ APROVAR</small><strong id="movOverviewDailyPending">—</strong></div>
+              <div><small>FECHAMENTOS</small><strong id="movOverviewDailyClosures">—</strong></div>
             </div>
-            <button type="button" class="btn primary" id="openMovFromOverview">Abrir movimentações</button>
+            <div class="mov-quick-actions">
+              <button type="button" class="btn primary" id="openMovFromOverview">Abrir movimentações</button>
+              <a class="btn ghost" href="./movimentacoes/?tab=diarias" target="_blank" rel="noopener">Controle de diárias</a>
+            </div>
           </article>
           <article class="panel focus-panel">
             <div class="panel-head focus-title"><div><h2>Leitura do avanço físico</h2><p>Entenda cada etapa: aprovado na medição, executado a medir e saldo contratual</p></div><select id="focusServiceSelect" aria-label="Selecionar serviço para detalhar o avanço"><option value="">Selecione um serviço</option></select></div>
