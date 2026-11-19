@@ -88,6 +88,7 @@ async function loadAll(){
    Object.assign(st,{works,vehicles,shipments,fuel,materials,locations,internal,attachments,access,profiles});
    if(!works.some(x=>x.id===st.workId))st.workId=works[0]?.id||null;
    render();
+   void window.RL_MOV_DAILY?.load?.(st.workId);
  }catch(err){console.error("RL Movimentações",err);toast("Falha ao carregar: "+err.message,true)}
  finally{st.loading=false;$("refresh").disabled=false}
 }
@@ -614,7 +615,7 @@ async function revoke(id){
 }
 function wire(){
  $("refresh").addEventListener("click",loadAll);
- $("workFilter").addEventListener("change",e=>{st.workId=e.target.value;render()});
+ $("workFilter").addEventListener("change",e=>{st.workId=e.target.value;render();void window.RL_MOV_DAILY?.load?.(st.workId)});
  $("printScreen").addEventListener("click",()=>window.print());
  document.querySelectorAll(".mov-tab").forEach(x=>x.addEventListener("click",()=>showTab(x.dataset.tab)));
  $("shipSearch").addEventListener("input",renderTrips);
@@ -645,6 +646,8 @@ async function start(){
  try{const allowed=await authorize();if(allowed)await loadAll();}
  catch(err){console.error("Movimentações access:",err);showAccess(false);toast("Acesso indisponível: "+err.message,true)}
 }
+window.RL_MOV_CORE=Object.freeze({client,st,canWrite,isAdmin,toast,selectedWork,loadAll,showTab});
+if(new URLSearchParams(location.search).get("tab")==="diarias")st.tab="diarias";
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start,{once:true});
 else start();
 })();
