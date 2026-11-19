@@ -66,7 +66,7 @@ assert.match(element("reportsNote").textContent,/2/,"Deve registrar documentos a
 events["reportsKinds:click"]({target:{closest:()=>({dataset:{reportKind:"mensal"}})}});
 const monthly=element("reportsTable").innerHTML;
 assert.match(monthly,/nov\./i,"Competência de novembro ausente");
-assert.match(monthly,/dez\./i,"Pagamento de dezembro em outra obra fica fora do filtro Planalto");
+assert.doesNotMatch(monthly,/dez\./i,"Pagamentos da Ambev não podem entrar no Planalto");
 assert.match(monthly,/83\.492,79/,"Competência no mês incorreta");
 events["reportsKinds:click"]({target:{closest:()=>({dataset:{reportKind:"pendencias"}})}});
 assert.match(element("reportsTable").innerHTML,/Arquivo ausente/);
