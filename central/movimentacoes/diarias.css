@@ -79,3 +79,29 @@
  body.daily-print-mode #dailyPrintRoot .print-note{font-size:10px;color:#394e5a;line-height:1.6}
  @page{size:A4 portrait;margin:14mm}
 }
+
+/* Fechamentos existentes: consulta direta, especialmente no celular. */
+.daily-closed-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:13px}
+.daily-closed-card{padding:17px;background:linear-gradient(145deg,#153d4c,#12313f);border:1px solid #4b7075;border-radius:13px}
+.daily-closed-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.daily-closed-heading h4{font-size:1rem;margin:13px 0 5px;color:#eaf4f6}
+.daily-closed-heading p{font-size:.78rem;color:#a9c5cd;margin:0 0 9px}
+.daily-closed-heading>strong{font-size:1.18rem;color:#b9e889;white-space:nowrap;margin-top:7px}
+.daily-closed-info{display:flex;flex-wrap:wrap;gap:7px 15px;color:#cde0e6;font-size:.75rem;padding:10px 0}
+.daily-closed-info b{color:#f0f9f9}
+.daily-open-hint{font-size:.76rem;color:#b7e38e;margin:9px 0}
+.daily-closed-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:15px}
+.daily-closed-actions .button{flex:1;min-width:125px;white-space:normal;text-align:center}
+.daily-overlap{padding:13px;border:1px solid #a78154;border-radius:12px;background:#503f274a;margin-bottom:13px}
+.daily-overlap>strong{display:block;color:#ffe6b3;font-size:.86rem;margin-bottom:8px}
+.daily-overlap-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid #8b805a73;padding-top:10px;margin-top:9px}
+.daily-overlap-row>span{font-size:.76rem;color:#ecd5b4;line-height:1.5}
+.daily-overlap-row .button{border-color:#ba9454;color:#f9e1af;flex-shrink:0}
+@media(max-width:680px){
+ .daily-closed-grid{grid-template-columns:1fr}
+ .daily-closed-heading>strong{font-size:1.22rem}
+ .daily-closed-actions{flex-direction:column}
+ .daily-closed-actions .button{width:100%}
+ .daily-overlap-row .button{width:100%}
+}
+@media print{.daily-closed-panel{display:none!important}}
