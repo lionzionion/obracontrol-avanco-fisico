@@ -5,9 +5,9 @@
 <meta name="description" content="RL Engenharia — Controle de movimentação interna, destinação externa, MTR, CDF, pesagens e abastecimentos de obras.">
 <title>RL Movimentações e MTR | Engenharia</title>
 <link rel="icon" href="../../icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../custos/custos.css?v=2"><link rel="stylesheet" href="./mov.css?v=1"><link rel="stylesheet" href="./diarias.css?v=1">
+<link rel="stylesheet" href="../custos/custos.css?v=2"><link rel="stylesheet" href="./mov.css?v=1"><link rel="stylesheet" href="./diarias.css?v=2">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
-<script defer src="./mov.js?v=1"></script><script defer src="./diarias.js?v=2"></script>
+<script defer src="./mov.js?v=1"></script><script defer src="./diarias.js?v=3"></script>
 </head>
 <body>
 <header class="topbar">
@@ -94,6 +94,11 @@
     <article class="metric"><span>Diárias equivalentes aprovadas</span><strong id="dailyKpiQty">—</strong><small>Inteiras, meias e disponibilidade contratada</small></article>
     <article class="metric finance-only" hidden><span>Fechamentos emitidos</span><strong id="dailyKpiClosed">—</strong><small>Valores aprovados, ainda não pagos</small></article>
   </section>
+  <article class="panel finance-only daily-closed-panel" id="dailyClosedCardsPanel" hidden>
+    <div class="panel-head"><div><span class="eyebrow">FECHAMENTOS JÁ APROVADOS</span><h3>Fechamentos disponíveis para consulta e PDF</h3>
+      <p>Os períodos encerrados já estão salvos. Não é necessário fazer outro fechamento para imprimir.</p></div></div>
+    <div id="dailyClosedCards" class="daily-closed-grid"></div>
+  </article>
   <article class="panel">
     <div class="panel-head"><div><h3>Apontamentos dos caminhões</h3><p>Escolha o período. Para lançar: selecione a placa, a data e o tipo de diária.</p></div>
       <span class="mini-tag" id="dailyAccessNote">Acesso por obra</span></div>
