@@ -113,7 +113,35 @@ function render(){
    '<td><div class="day-short">'+E(x.field_note||"—")+'</div></td><td>'+actions+'</td></tr>';
  }).join(""):'<tr><td class="empty" colspan="7">Nenhum apontamento nesse período. Use “Lançar diária” para começar.</td></tr>';
  $("dailyCount").textContent=rs.length+" registro(s) exibidos · Diárias não são geradas automaticamente por viagens/MTR.";
- renderClosures();renderRates();
+ renderClosures();renderClosureCards();renderRates();
+}
+
+function dieselForClosure(closure){
+ const vehicle=selectedVehicle(closure.vehicle_id);
+ return (st.fuel||[]).filter(x=>x.work_id===closure.work_id&&x.vehicle_plate===vehicle?.plate
+   &&x.filled_date>=closure.start_date&&x.filled_date<=closure.end_date)
+   .reduce((total,item)=>total+Number(item.amount||0),0);
+}
+function renderClosureCards(){
+ if(!canFinancial())return;
+ const cls=state.closures.filter(x=>x.work_id===st.workId)
+   .sort((a,b)=>b.end_date.localeCompare(a.end_date)||b.created_at.localeCompare(a.created_at));
+ $("dailyClosedCards").innerHTML=cls.length?cls.map(c=>{
+   const veh=selectedVehicle(c.vehicle_id);
+   const unclosed=myLogs().filter(x=>x.vehicle_id===c.vehicle_id&&!x.closure_id&&x.review_status==="aprovado").length;
+   const diesel=dieselForClosure(c);
+   return '<article class="daily-closed-card">'+
+     '<div class="daily-closed-heading"><div><span class="day-state fechada">Fechamento aprovado</span>'+
+     '<h4>'+E(veh?.plate||"—")+' · '+E(veh?.driver_reference||"Motorista")+'</h4>'+
+     '<p>'+E(dateLabel(c.start_date))+' a '+E(dateLabel(c.end_date))+'</p></div>'+
+     '<strong>'+amount(c.total_amount)+'</strong></div>'+
+     '<div class="daily-closed-info"><span><b>'+format(c.quantity_total,0)+'</b> diárias equivalentes</span>'+
+     '<span>Diesel no período: <b>'+amount(diesel)+'</b></span></div>'+
+     '<p class="form-hint">Diesel informado apenas como custo operacional, sem desconto na locação.</p>'+
+     (unclosed?'<p class="daily-open-hint">'+unclosed+' nova(s) diária(s) aprovada(s) disponível(is) para outro fechamento.</p>':"")+
+     '<div class="daily-closed-actions"><button type="button" class="button primary" data-close-open="'+E(c.id)+'">Ver fechamento / PDF</button>'+
+     '<button type="button" class="button ghost" data-close-print="'+E(c.id)+'">Imprimir direto</button></div></article>';
+ }).join(""):'<p class="empty-note">Ainda não há períodos encerrados. Após conferir e aprovar os lançamentos, use “Fazer fechamento”.</p>';
 }
 function renderClosures(){
  if(!canFinancial())return;
@@ -253,28 +281,50 @@ async function saveRate(event){
  }catch(err){$("dailyRateError").textContent=err.code==="23505"?"Já existe tarifa vigente nessa data para este caminhão. Use uma nova data de vigência.":err.message}
  finally{b.disabled=false}
 }
+function lastClosureFor(vehicleId){
+ return state.closures.filter(c=>c.work_id===st.workId&&c.vehicle_id===vehicleId)
+   .sort((a,b)=>b.end_date.localeCompare(a.end_date))[0]||null;
+}
+function afterDay(date){
+ const d=new Date(date+"T12:00:00");
+ d.setDate(d.getDate()+1);
+ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function suggestNewPeriod(vehicleId){
+ const last=lastClosureFor(vehicleId);
+ const start=last?afterDay(last.end_date):monthBefore(today());
+ const unclosed=myLogs().filter(l=>l.vehicle_id===vehicleId&&!l.closure_id&&l.review_status==="aprovado");
+ const newStart=last?start:(unclosed.length?unclosed.map(l=>l.work_date).sort()[0]:start);
+ $("dailyCloseFrom").value=newStart;
+ $("dailyCloseTo").value=today()>newStart?today():newStart;
+}
 function openClosing(){
  if(!isAdmin())return;
  if(!vehicles().length){core.toast("Cadastre primeiro o caminhão.",true);return}
  vehicleOptions("dailyCloseVehicle");
- $("dailyCloseTo").value=today();$("dailyCloseFrom").value=monthBefore(today());
+ suggestNewPeriod($("dailyCloseVehicle").value);
  $("dailyCloseExtras").value="0";$("dailyCloseDiscounts").value="0";$("dailyCloseNote").value="";
  $("dailyCloseAgree").checked=false;$("dailyCloseError").textContent="";
  previewClosing();$("dailyClosureDialog").showModal();
 }
 function computeClosing(vehicle,from,to){
  const result={valid:false,qty:0,subtotal:0,extras:round($("dailyCloseExtras").value),
-  discounts:round($("dailyCloseDiscounts").value),items:[],errors:[]};
+  discounts:round($("dailyCloseDiscounts").value),items:[],errors:[],overlaps:[],closedCount:0,pendingDates:[]};
  if(!vehicle||!from||!to){result.errors.push("Selecione caminhão e datas.");return result}
  const diff=(new Date(to+"T12:00:00")-new Date(from+"T12:00:00"))/86400000;
- if(diff<0||diff>93){result.errors.push("O período deve ser de até 94 dias.");return result}
- const overlapping=state.closures.find(c=>c.vehicle_id===vehicle&&c.work_id===st.workId&&c.start_date<=to&&c.end_date>=from);
- if(overlapping)result.errors.push("Há fechamento anterior sobreposto a esse período.");
+ if(diff<0||diff>93){result.errors.push("Informe um período válido com até 94 dias.");return result}
+ result.overlaps=state.closures.filter(c=>c.vehicle_id===vehicle&&c.work_id===st.workId&&c.start_date<=to&&c.end_date>=from);
+ if(result.overlaps.length)result.errors.push("O intervalo selecionado já possui fechamento aprovado. Consulte o PDF existente abaixo ou selecione datas posteriores ao último fechamento.");
  const logs=myLogs().filter(x=>x.vehicle_id===vehicle&&x.work_date>=from&&x.work_date<=to)
    .sort((a,b)=>a.work_date.localeCompare(b.work_date));
- if(!logs.length)result.errors.push("Não existem diárias nesse intervalo.");
+ result.closedCount=logs.filter(x=>x.closure_id!==null).length;
+ if(!logs.length)result.errors.push("Não existem novas diárias lançadas nesse intervalo.");
  for(const log of logs){
-  if(log.review_status!=="aprovado"||log.closure_id){result.errors.push(dateLabel(log.work_date)+": diária não aprovada ou já fechada.");continue}
+  if(log.closure_id)continue;
+  if(log.review_status!=="aprovado"){
+    result.pendingDates.push(dateLabel(log.work_date));
+    continue;
+  }
   const rate=rateFor(vehicle,log.work_date),f=factor(log.day_type,rate);
   if(f===null){result.errors.push(dateLabel(log.work_date)+": defina o fator de disponibilidade no contrato.");continue}
   if(f>0&&!rate){result.errors.push(dateLabel(log.work_date)+": não há tarifa contratual vigente.");continue}
@@ -282,23 +332,35 @@ function computeClosing(vehicle,from,to){
   result.qty+=f;result.subtotal=round(result.subtotal+value);
   result.items.push({log,f,value,rate});
  }
+ if(result.pendingDates.length)result.errors.push(result.pendingDates.length+" diária(s) ainda precisam de aprovação: "+result.pendingDates.join(", ")+".");
+ if(!result.items.length&&!result.overlaps.length&&!result.pendingDates.length&&logs.length>0)result.errors.push("Não há novas diárias aprovadas para fechar.");
  if(result.extras<0||result.discounts<0)result.errors.push("Ajustes não podem ser negativos.");
  if(result.subtotal+result.extras<result.discounts)result.errors.push("Descontos excedem o valor devido.");
  if((result.extras>0||result.discounts>0)&&!$("dailyCloseNote").value.trim())result.errors.push("Justifique os adicionais ou descontos.");
- result.valid=result.errors.length===0;
+ result.valid=result.errors.length===0&&result.items.length>0;
  return result;
 }
 function previewClosing(){
  if(!isAdmin())return;
  const result=computeClosing($("dailyCloseVehicle").value,$("dailyCloseFrom").value,$("dailyCloseTo").value);
+ const previous=result.overlaps.length?
+  '<div class="daily-overlap"><strong>Este período já foi fechado:</strong>'+
+    result.overlaps.map(c=>{
+      const v=selectedVehicle(c.vehicle_id);
+      return '<div class="daily-overlap-row"><span>'+E(v?.plate||"—")+' · '+E(dateLabel(c.start_date))+' a '+E(dateLabel(c.end_date))+
+        ' · '+format(c.quantity_total,0)+' diária(s) · '+amount(c.total_amount)+'</span>'+
+        '<button type="button" class="button ghost" data-view-existing="'+E(c.id)+'">Abrir fechamento / PDF</button></div>';
+    }).join("")+'</div>':"";
  $("dailyClosePreview").innerHTML=
-  '<div><b>Diárias analisadas:</b> '+result.items.length+'</div>'+
-  '<div><b>Quantidade equivalente:</b> '+format(result.qty,3)+' diária(s)</div>'+
-  '<div><b>Subtotal:</b> '+amount(result.subtotal)+'</div>'+
+  previous+
+  (result.closedCount?'<p class="form-hint">'+result.closedCount+' diária(s) já encerrada(s) não entram no novo cálculo.</p>':"")+
+  '<div><b>Novas diárias aprovadas para fechamento:</b> '+result.items.length+'</div>'+
+  '<div><b>Quantidade equivalente nova:</b> '+format(result.qty,3)+' diária(s)</div>'+
+  '<div><b>Subtotal de novas diárias:</b> '+amount(result.subtotal)+'</div>'+
   '<div><b>Adicionais:</b> '+amount(result.extras)+' · <b>Descontos:</b> '+amount(result.discounts)+'</div>'+
-  '<div><strong>Total previsto: '+amount(round(result.subtotal+result.extras-result.discounts))+'</strong></div>'+
+  '<div><strong>Valor do novo fechamento: '+amount(round(result.subtotal+result.extras-result.discounts))+'</strong></div>'+
   result.errors.map(x=>'<p class="warning-line">'+E(x)+'</p>').join("")+
-  (!result.errors.length?'<p class="form-hint">O banco confirmará novamente a elegibilidade e os valores ao fechar.</p>':"");
+  (result.valid?'<p class="form-hint">O banco verificará novamente as diárias e os valores antes de aprovar.</p>':"");
  $("dailyCloseSave").disabled=!result.valid||!$("dailyCloseAgree").checked;
 }
 async function saveClosing(event){
@@ -446,10 +508,22 @@ function bind(){
  $("dailyLogForm").addEventListener("submit",saveLog);
  $("dailyRateForm").addEventListener("submit",saveRate);
  $("dailyClosureForm").addEventListener("submit",saveClosing);
+ $("dailyCloseVehicle").addEventListener("change",()=>{
+   suggestNewPeriod($("dailyCloseVehicle").value);
+   $("dailyCloseAgree").checked=false;
+   previewClosing();
+ });
+ $("dailyClosePreview").addEventListener("click",event=>{
+   const id=event.target.closest("[data-view-existing]")?.dataset.viewExisting;
+   if(!id)return;
+   $("dailyClosureDialog").close();
+   showClosure(id);
+ });
  ["dailyCloseVehicle","dailyCloseFrom","dailyCloseTo","dailyCloseExtras","dailyCloseDiscounts","dailyCloseNote","dailyCloseAgree"]
  .forEach(id=>$(id).addEventListener("input",previewClosing));
  $("panel-diarias").addEventListener("click",event=>{
   const button=event.target.closest("button");if(!button)return;
+  if(button.dataset.closePrint){const c=state.closures.find(x=>x.id===button.dataset.closePrint&&x.work_id===st.workId);if(c){const v=selectedVehicle(c.vehicle_id);const lines=state.lines.filter(x=>x.closure_id===c.id).sort((a,b)=>a.work_date.localeCompare(b.work_date));printClosing(c,v,lines)}return}
   if(button.dataset.dayOpen)showLog(button.dataset.dayOpen);
   else if(button.dataset.dayEdit)openLog(state.logs.find(x=>x.id===button.dataset.dayEdit));
   else if(button.dataset.dayApprove)void setReview(button.dataset.dayApprove,"aprovado");
